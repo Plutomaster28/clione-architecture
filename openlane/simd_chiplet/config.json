@@ -1,0 +1,18 @@
+{
+  "DESIGN_NAME": "simd_chiplet_top",
+  "VERILOG_FILES": [
+    "dir::../../rtl/pkg/clione_pkg.sv",
+    "dir::../../rtl/execution_chiplets/simd/simd_chiplet_top.sv"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 3.00,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": "0 0 5500 4500",
+  "FP_CORE_UTIL": 65,
+  "PL_TARGET_DENSITY": 0.62,
+  "SYNTH_STRATEGY": "AREA 0",
+  "SYNTH_MAX_FANOUT": 16,
+  "ROUTING_CORES": 4,
+  "CTS_TOLERANCE": 25,
+  "BASE_SDC_FILE": "dir::constraints.sdc"
+}

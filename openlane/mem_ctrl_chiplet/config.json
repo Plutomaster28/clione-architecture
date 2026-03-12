@@ -1,0 +1,20 @@
+{
+  "DESIGN_NAME": "mem_ctrl_chiplet",
+  "VERILOG_FILES": [
+    "dir::../../rtl/pkg/clione_pkg.sv",
+    "dir::../../rtl/memory_io/mem_ctrl_chiplet.sv"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 2.00,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": "0 0 4000 3800",
+  "FP_CORE_UTIL": 65,
+  "PL_TARGET_DENSITY": 0.62,
+  "SYNTH_STRATEGY": "DELAY 1",
+  "SYNTH_MAX_FANOUT": 12,
+  "ROUTING_CORES": 4,
+  "CTS_TOLERANCE": 15,
+  "IO_HMETAL": 4,
+  "IO_VMETAL": 3,
+  "BASE_SDC_FILE": "dir::constraints.sdc"
+}

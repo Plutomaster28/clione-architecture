@@ -1,0 +1,19 @@
+{
+  "DESIGN_NAME": "fpu_chiplet_top",
+  "VERILOG_FILES": [
+    "dir::../../rtl/pkg/clione_pkg.sv",
+    "dir::../../rtl/execution_chiplets/fpu/fpu_pipe.sv",
+    "dir::../../rtl/execution_chiplets/fpu/fpu_chiplet_top.sv"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 2.50,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": "0 0 5000 4000",
+  "FP_CORE_UTIL": 68,
+  "PL_TARGET_DENSITY": 0.65,
+  "SYNTH_STRATEGY": "DELAY 1",
+  "SYNTH_MAX_FANOUT": 12,
+  "ROUTING_CORES": 4,
+  "CTS_TOLERANCE": 20,
+  "BASE_SDC_FILE": "dir::constraints.sdc"
+}

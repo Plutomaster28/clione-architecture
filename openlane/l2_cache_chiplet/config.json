@@ -1,0 +1,18 @@
+{
+  "DESIGN_NAME": "l2_cache_chiplet",
+  "VERILOG_FILES": [
+    "dir::../../rtl/pkg/clione_pkg.sv",
+    "dir::../../rtl/cache_chiplets/l2_cache_chiplet.sv"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 3.00,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": "0 0 4200 2500",
+  "FP_CORE_UTIL": 60,
+  "PL_TARGET_DENSITY": 0.58,
+  "SYNTH_STRATEGY": "AREA 0",
+  "SYNTH_MAX_FANOUT": 20,
+  "ROUTING_CORES": 4,
+  "CTS_TOLERANCE": 30,
+  "BASE_SDC_FILE": "dir::constraints.sdc"
+}

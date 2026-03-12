@@ -1,0 +1,18 @@
+{
+  "DESIGN_NAME": "crypto_chiplet_top",
+  "VERILOG_FILES": [
+    "dir::../../rtl/pkg/clione_pkg.sv",
+    "dir::../../rtl/execution_chiplets/crypto/crypto_chiplet_top.sv"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 2.00,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": "0 0 3500 3000",
+  "FP_CORE_UTIL": 72,
+  "PL_TARGET_DENSITY": 0.70,
+  "SYNTH_STRATEGY": "DELAY 2",
+  "SYNTH_MAX_FANOUT": 10,
+  "ROUTING_CORES": 4,
+  "CTS_TOLERANCE": 15,
+  "BASE_SDC_FILE": "dir::constraints.sdc"
+}

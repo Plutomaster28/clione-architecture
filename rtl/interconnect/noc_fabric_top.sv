@@ -60,11 +60,11 @@ module noc_fabric_top
   // We generate wires between neighbors
 
   noc_pkt_t  r_in_pkt   [NUM_NODES-1:0][NUM_PORTS-1:0];
-  logic      r_in_valid  [NUM_NODES-1:0][NUM_PORTS-1:0];
-  logic      r_in_credit [NUM_NODES-1:0][NUM_PORTS-1:0];
+  logic [NUM_PORTS-1:0] r_in_valid  [NUM_NODES-1:0];
+  logic [NUM_PORTS-1:0] r_in_credit [NUM_NODES-1:0];
   noc_pkt_t  r_out_pkt  [NUM_NODES-1:0][NUM_PORTS-1:0];
-  logic      r_out_valid [NUM_NODES-1:0][NUM_PORTS-1:0];
-  logic      r_out_credit[NUM_NODES-1:0][NUM_PORTS-1:0];
+  logic [NUM_PORTS-1:0] r_out_valid [NUM_NODES-1:0];
+  logic [NUM_PORTS-1:0] r_out_credit[NUM_NODES-1:0];
 
   // --------------------------------------------------------------------------
   // Generate routers

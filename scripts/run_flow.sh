@@ -44,6 +44,11 @@ check_openlane() {
   fi
 }
 
+VOLARE_MOUNT_ARGS=()
+if [ -d "$HOME/.volare" ]; then
+  VOLARE_MOUNT_ARGS=(-v "$HOME/.volare:/root/.volare")
+fi
+
 run_chiplet() {
   local name="$1"
   local cfg_dir="$OL_DIR/$name"
@@ -64,6 +69,7 @@ run_chiplet() {
   if [ "${USE_DOCKER:-0}" = "1" ]; then
     docker run --rm \
       -v "$REPO_ROOT:$REPO_ROOT" \
+      "${VOLARE_MOUNT_ARGS[@]}" \
       -w "$REPO_ROOT" \
       efabless/openlane:latest \
       flow.tcl -design "$cfg_dir" -tag "$name" -overwrite \

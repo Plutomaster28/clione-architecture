@@ -149,8 +149,14 @@ module clustered_ooo_scheduler
         dispatch_pkt[i].data[511:448] = disp_ent[i].src1_data;
         dispatch_pkt[i].data[447:384] = disp_ent[i].src2_data;
         dispatch_pkt[i].data[383:320] = disp_ent[i].src3_data;
-        // Pack key uop fields into lower bits
-        dispatch_pkt[i].data[63:0]    = iq_uop_int[i].raw_instr;
+        // Pack key uop fields consumed by chiplets
+        dispatch_pkt[i].data[31:0]    = iq_uop_int[i].raw_instr;
+        dispatch_pkt[i].data[32]      = iq_uop_int[i].has_imm;
+        dispatch_pkt[i].data[33]      = iq_uop_int[i].is_branch;
+        dispatch_pkt[i].data[35:34]   = iq_uop_int[i].mode;
+        dispatch_pkt[i].data[38:36]   = iq_uop_int[i].op_width;
+        dispatch_pkt[i].data[PREG_WIDTH+39:40] = iq_uop_int[i].phys_rd;
+        dispatch_pkt[i].data[127:64]  = iq_uop_int[i].pc;
 
         dispatch_valid[i] = 1'b1;
       end
@@ -169,7 +175,13 @@ module clustered_ooo_scheduler
         dispatch_pkt[4+i].data[511:448] = rf_rd_data[(4+i)*3+0];
         dispatch_pkt[4+i].data[447:384] = rf_rd_data[(4+i)*3+1];
         dispatch_pkt[4+i].data[383:320] = rf_rd_data[(4+i)*3+2];
-        dispatch_pkt[4+i].data[63:0]    = iq_uop_fp[i].raw_instr;
+        dispatch_pkt[4+i].data[31:0]    = iq_uop_fp[i].raw_instr;
+        dispatch_pkt[4+i].data[32]      = iq_uop_fp[i].has_imm;
+        dispatch_pkt[4+i].data[33]      = iq_uop_fp[i].is_branch;
+        dispatch_pkt[4+i].data[35:34]   = iq_uop_fp[i].mode;
+        dispatch_pkt[4+i].data[38:36]   = iq_uop_fp[i].op_width;
+        dispatch_pkt[4+i].data[PREG_WIDTH+39:40] = iq_uop_fp[i].phys_rd;
+        dispatch_pkt[4+i].data[127:64]  = iq_uop_fp[i].pc;
         dispatch_valid[4+i] = 1'b1;
       end
       iq_rdy_fp[i] = dispatch_ready[4+i];
@@ -183,7 +195,13 @@ module clustered_ooo_scheduler
         dispatch_pkt[6+i].dst_node = 5'(CLUSTER_SIMD0) + 5'(i);
         dispatch_pkt[6+i].data[511:448] = rf_rd_data[(6+i)*3+0];
         dispatch_pkt[6+i].data[447:384] = rf_rd_data[(6+i)*3+1];
-        dispatch_pkt[6+i].data[63:0]    = iq_uop_vec[i].raw_instr;
+        dispatch_pkt[6+i].data[31:0]    = iq_uop_vec[i].raw_instr;
+        dispatch_pkt[6+i].data[32]      = iq_uop_vec[i].has_imm;
+        dispatch_pkt[6+i].data[33]      = iq_uop_vec[i].is_branch;
+        dispatch_pkt[6+i].data[35:34]   = iq_uop_vec[i].mode;
+        dispatch_pkt[6+i].data[38:36]   = iq_uop_vec[i].op_width;
+        dispatch_pkt[6+i].data[PREG_WIDTH+39:40] = iq_uop_vec[i].phys_rd;
+        dispatch_pkt[6+i].data[127:64]  = iq_uop_vec[i].pc;
         dispatch_valid[6+i] = 1'b1;
       end
       iq_rdy_vec[i] = dispatch_ready[6+i];

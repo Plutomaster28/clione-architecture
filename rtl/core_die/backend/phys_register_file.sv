@@ -31,8 +31,8 @@ module phys_register_file
   // --------------------------------------------------------------------------
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      for (int i = 0; i < PHYS_INT_REGS; i++) rf_int[i] <= '0;
-      for (int i = 0; i < PHYS_FP_REGS;  i++) rf_fp[i]  <= '0;
+      for (int i = 0; i < PHYS_INT_REGS; i++) rf_int[i] = '0;
+      for (int i = 0; i < PHYS_FP_REGS;  i++) rf_fp[i]  = '0;
     end else begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         if (wr_valid[i]) begin

@@ -1,0 +1,2263 @@
+\documentclass[12pt]{article}
+
+% IBM-style documentation packages
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in, includefoot, heightrounded]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{courier}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{etoolbox}
+
+% Font setup - Use default article font, courier only for code
+% \renewcommand{\familydefault}{\ttdefault}
+
+% Header/Footer setup
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily SeaBird ISA Reference Manual}
+\fancyhead[R]{\small\sffamily Version 1.1}
+\fancyfoot[C]{\small\sffamily \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries\sffamily}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\sffamily}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\sffamily}{\thesubsubsection}{1em}{}
+
+% IBM-style code listings
+\lstdefinestyle{asmstyle}{
+    basicstyle=\ttfamily\small,
+    commentstyle=\color{gray},
+    keywordstyle=\bfseries,
+    numberstyle=\tiny\color{gray},
+    stringstyle=\color{black},
+    breaklines=true,
+    showstringspaces=false,
+    frame=single,
+    numbers=left,
+    tabsize=4,
+    xleftmargin=2em,
+    framexleftmargin=1.5em,
+    backgroundcolor=\color{gray!10}
+}
+
+\lstset{style=asmstyle}
+
+% Table of contents formatting
+\renewcommand{\cftsecfont}{\sffamily}
+\renewcommand{\cftsubsecfont}{\sffamily}
+\renewcommand{\cftsecpagefont}{\sffamily}
+\renewcommand{\cftsubsecpagefont}{\sffamily}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    citecolor=black,
+    pdfborder={0 0 0}
+}
+
+% Custom table column types for better fitting
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% Adjust table spacing and appearance
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.1}
+
+% Make tables use smaller font
+\AtBeginEnvironment{longtable}{\footnotesize}
+\AtBeginEnvironment{table}{\footnotesize}
+
+% Better text flow - prevent overfull hboxes
+\sloppy
+\emergencystretch=1em
+
+\begin{document}
+
+% Title page
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    
+    {\Huge\bfseries SeaBird ISA\\[0.3cm]}
+    {\LARGE Reference Manual\\[0.5cm]}
+    {\Large Hybrid CISC/RISC Architecture\\[0.3cm]}
+    {\large Technical Specification}
+    
+    \vspace{2cm}
+    
+    {\large makateotakanawa@gmail.com\\
+    Research and Development at Meisei\\[0.5cm]}
+    
+    \vspace{1cm}
+    
+    {\large December 7, 2025\\ UPDATED: January 28, 2026\\[1cm]}
+    
+    \vspace{1cm}
+    
+    \begin{center}
+    \textbf{Document Version:} 1.1\\
+    \textbf{Classification:} Technical Documentation
+    \end{center}
+    
+    \vfill
+    
+    {\small Meisei - Naoki Saito\\
+    For Use with Meisei General-Purpose Processors}
+    
+\end{titlepage}
+
+\newpage
+
+\begin{center}
+\section*{Document Information}
+\end{center}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Document Title & SeaBird ISA Reference Manual \\
+Version & 1.1 \\
+Date & December 7, 2025 | UPDATED: January 28, 2026\\
+Status & 1.1 \\
+Architecture & Hybrid CISC/RISC \\
+Modes Supported & Clownfish (16-bit), Tetra (32-bit), Dragonet (64-bit), Droplet (128-bit)\\
+Instruction Count & 160 instructions \\
+Register Count & 32 general-purpose registers (R0--R31) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{1cm}
+
+\section*{Abstract}
+
+The SeaBird ISA architecture is a modern hybrid CISC/RISC architecture intended for use with high-performance designs. This architecture blends visible CISC machine-level instructions with a more internal execution model for micro-operations similar to a conventional RISC architecture.
+
+The architecture supports a wide array of operating modes (either 16-bit, 32-bit, or 64-bit operation), full vectorization capabilities, and remains compatible with RISC-V.
+
+This manual constitutes a full specification of the instruction set, encodings, register architecture, memory model, and implementation techniques for use by compiler writers, operating system designers, emulator implementors, and hardware engineers.
+
+% Table of Contents
+\tableofcontents
+\newpage
+
+% Main Content
+\section{Introduction}
+
+The SeaBird ISA is a hybrid CISC/RISC architecture designed to:
+
+\begin{itemize}
+    \item Allow highly expressive instructions for compact, human-readable assembly.
+    \item Break CISC instructions into simple RISC-like micro-ops internally for high performance.
+    \item Support multiple operating modes:
+    \begin{itemize}
+        \item Clownfish (16-bit real mode)
+        \item Tetra (32-bit protected mode)
+        \item Dragonet (64-bit long mode)
+        \item Copycat (RISC-V compatibility mode)
+    \end{itemize}
+    \item Support vector and floating-point operations in addition to scalar operations.
+    \item Provide a flexible register naming scheme that allows both Intel-style semantic names and Rx numeric aliases.
+\end{itemize}
+
+The architecture is designed for modern CPU pipelines, allowing micro-op fusion, vectorization, and efficient memory addressing.
+
+\section{Operating Modes and Memory Model}
+
+\subsection{Operating Modes}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Mode} & \textbf{Bit Width} & \textbf{Purpose} & \textbf{Notes} \\ \midrule
+Clownfish & 16-bit & Legacy/boot real-mode & IP=16-bit, Registers=16-bit \\
+Tetra & 32-bit & Protected mode & Supports 32-bit virtual memory, \\
+ &  &  & standard privilege rings \\
+Dragonet & 64-bit & Long mode & 64-bit registers, supports 64-bit \\
+ &  &  & addressing, RIP-relative addressing \\
+Copycat & 32/64-bit & Compatibility mode & Maps R0--R31 to standard RISC-V \\
+ &  &  & general-purpose registers \\ 
+ Droplet & 128-bit & Hypervisor mode & Virtual wide precision mode \\ & & & for complex computing tasks\\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Vector Reset:} 0xCAFE (entry point for vector tables)
+
+\subsection{Memory Model}
+
+\begin{itemize}
+    \item Flat linear memory in Tetra/Dragonet modes
+    \item Memory protection and masking handled by the memory controller / MMU
+    \item Instructions are independent of mode; access faults occur via MMU if privileges are violated
+\end{itemize}
+
+\subsubsection{Mode-Independent Instruction Set}
+
+\textbf{Critical Design Principle:} All instructions in the SeaBird ISA are mode-independent. The instruction encoding, mnemonics, and behavior remain identical across all privilege levels and operating modes.
+
+\textbf{Examples:}
+
+\begin{lstlisting}
+LD  R1, [R2]              ; loads from memory (all modes)
+ST  [R3], R4              ; stores to memory (all modes)
+MOV R5, R6                ; register move (all modes)
+ADD R7, R8, R9            ; arithmetic (all modes)
+JMP label                 ; jump (all modes)
+\end{lstlisting}
+
+Nothing about the instruction encoding changes. Nothing about the mnemonic changes. The instruction simply generates a memory request or operation.
+
+\subsubsection{Privilege Enforcement via MMU}
+
+The Memory Management Unit (MMU) / memory controller handles all permission checks \textit{after} instruction decode:
+
+\textbf{Process Flow:}
+
+\begin{enumerate}
+    \item Instruction decoded (e.g., LD R1, [0xFFFF0000])
+    \item Memory request issued to MMU
+    \item MMU checks:
+    \begin{itemize}
+        \item Current privilege level (user/kernel/hypervisor)
+        \item Address mapping validity
+        \item Access permissions (read/write/execute)
+        \item Protection attributes
+    \end{itemize}
+    \item MMU response:
+    \begin{itemize}
+        \item \textbf{Success:} Return data / complete operation
+        \item \textbf{Failure:} Trigger exception (access fault, page fault, privilege violation, segmentation fault)
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Example Scenarios:}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Mode} & \textbf{Instruction} & \textbf{Behavior} \\ \midrule
+User & LD R1, [0xFFFF0000] & \textbf{Fault} if kernel-only address \\
+User & ST [user\_data], R2 & \textbf{Success} if mapped \& writable \\
+Kernel & LD R1, [0xFFFF0000] & \textbf{Success} (kernel memory accessible) \\
+Kernel & ST [io\_port], R3 & \textbf{Success} (I/O access allowed) \\
+Hypervisor & LD R1, [guest\_mem] & \textbf{Success} (VM memory accessible) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Mode Privilege Summary}
+
+\textbf{User Mode:}
+\begin{itemize}
+    \item Can execute all instructions (LD, ST, ADD, JMP, etc.)
+    \item \textit{Cannot} access kernel memory, I/O ranges, page tables, or privileged control registers
+    \item Memory violations trigger exceptions handled by kernel
+\end{itemize}
+
+\textbf{Kernel Mode:}
+\begin{itemize}
+    \item Same instruction set as user mode
+    \item \textit{Can} access privileged memory regions, I/O ports, and control registers
+    \item Full access to system resources
+\end{itemize}
+
+\textbf{Hypervisor Mode (optional):}
+\begin{itemize}
+    \item Same instruction set as user/kernel modes
+    \item \textit{Can} access VM guest memory mappings and virtualization control structures
+    \item Highest privilege level
+\end{itemize}
+
+\textbf{Design Advantage:} One unified instruction set across all privilege levels. Mode determines \textit{whether access succeeds}, not \textit{what instructions are available}.
+
+\section{Registers}
+
+The SeaBird ISA provides a comprehensive register set with dual naming conventions, supporting both modern numeric naming (R0--R31) and legacy-style semantic aliases (AX, BX, etc.). Register width varies by operating mode.
+
+\subsection{General-Purpose Registers (GPRs)}
+
+\subsubsection{Primary GPRs (R0--R15)}
+
+Available in all modes (Clownfish, Tetra, Dragonet, RISC-V):
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Physical} & \textbf{SeaBird Name} & \textbf{Legacy Alias} & \textbf{Purpose Hint} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Physical} & \textbf{SeaBird Name} & \textbf{Legacy Alias} & \textbf{Purpose Hint} \\ \midrule
+\endhead
+R0 & A0 & AX & Primary accumulator \\
+R1 & A1 & BX & Base/index utility \\
+R2 & A2 & CX & Counter register \\
+R3 & A3 & DX & Data register \\
+R4 & B0 & SI & Source pointer / string ops \\
+R5 & B1 & DI & Destination pointer \\
+R6 & B2 & BP & Base pointer \\
+R7 & B3 & SP & Stack pointer \\
+R8 & C0 & R8W/R8D/R8 & Extra GPR \\
+R9 & C1 & R9 & Extra GPR \\
+R10 & C2 & R10 & Extra GPR \\
+R11 & C3 & R11 & Extra GPR \\
+R12 & D0 & R12 & Extra GPR \\
+R13 & D1 & R13 & Extra GPR \\
+R14 & D2 & R14 & Extra GPR \\
+R15 & D3 & R15 & Extra GPR \\ \bottomrule
+\end{longtable}
+
+\subsubsection{Extended General Registers (R16--R31)}
+
+Available in Dragonet (64-bit) mode only:
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Physical} & \textbf{SeaBird Name} & \textbf{Purpose} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Physical} & \textbf{SeaBird Name} & \textbf{Purpose} \\ \midrule
+\endhead
+R16 & E0 & Environment/exception scratch \\
+R17 & E1 & Syscall argument 0 \\
+R18 & E2 & Syscall argument 1 \\
+R19 & E3 & Syscall argument 2 \\
+R20 & F0 & FP scratch 0 \\
+R21 & F1 & FP scratch 1 \\
+R22 & F2 & FP scratch 2 \\
+R23 & F3 & FP scratch 3 \\
+R24 & G0 & General purpose \\
+R25 & G1 & General purpose \\
+R26 & G2 & General purpose \\
+R27 & G3 & General purpose \\
+R28 & T0 & Temporary (µop engine) \\
+R29 & T1 & Temporary (µop engine) \\
+R30 & T2 & Temporary (µop engine) \\
+R31 & T3 & Temporary (µop engine) \\ \bottomrule
+\end{longtable}
+
+\textbf{Note:} The T-class registers (R28--R31) are ideal for micro-op expansion and addressing-mode calculations, serving as internal scratch registers for the µop execution engine.
+
+\subsection{Register Access Rules}
+
+\subsubsection{Dual Naming}
+
+All registers are accessible via multiple aliases:
+
+\begin{itemize}
+    \item \textbf{R0} = \textbf{A0} = \textbf{AX} (all refer to the same physical register)
+    \item \textbf{R3} = \textbf{A3} = \textbf{DX}
+    \item \textbf{R5} = \textbf{B1} = \textbf{DI}
+    \item \textbf{R7} = \textbf{B3} = \textbf{SP}
+\end{itemize}
+
+\subsubsection{Width Rules Across Operating Modes}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Mode} & \textbf{Register Width} & \textbf{Pointer Width} \\ \midrule
+Clownfish & 16-bit & 16-bit \\
+Tetra & 32-bit & 32-bit \\
+Dragonet & 64-bit & 64-bit \\
+Copycat & Uses R0--R31 as RV x0--x31 & 32/64-bit \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Subregister Views}
+
+Similar to x86-64, registers support partial access:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Suffix} & \textbf{Meaning} \\ \midrule
+\textbf{A0B} & Lower 8 bits (byte) \\
+\textbf{A0W} & Lower 16 bits (word) \\
+\textbf{A0D} & Lower 32 bits (dword) \\
+\textbf{A0} & Full 64 bits (qword, Dragonet only) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Examples:}
+
+\begin{lstlisting}
+MOV A0W, #0x1234      ; move to lower 16 bits
+MOV A0D, #0xDEADBEEF  ; move to lower 32 bits
+MOV A0, #0xCAFEBABE   ; move to full 64-bit register
+\end{lstlisting}
+
+In Clownfish mode (16-bit):
+\begin{itemize}
+    \item AX refers to the full 16-bit view of R0
+\end{itemize}
+
+In Tetra mode (32-bit):
+\begin{itemize}
+    \item A0D or AX refers to the full 32-bit view of R0
+\end{itemize}
+
+In Dragonet mode (64-bit):
+\begin{itemize}
+    \item A0 refers to the full 64-bit view of R0
+\end{itemize}
+
+\subsection{Special Registers}
+
+These registers cannot be accessed as Rn and require special instructions (similar to x86 CR/DR registers):
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Name} & \textbf{Purpose} \\ \midrule
+IP & Instruction pointer (16/32/64-bit depending on mode) \\
+FLAGS & Status flags (zero, carry, overflow, sign, etc.) \\
+CFAR & CISC Frontend Address Register (RIP + prefix info) \\
+UCF & Micro-op control flags \\
+VECCTL & Vector mode control \\
+SPTR & Shadow stack pointer (optional security feature) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Access:} Special registers are manipulated via dedicated instructions such as RDCR/WRCR or implicit behavior during control flow operations.
+
+\section{Instruction Syntax}
+
+\subsection{Core Syntax Rules}
+
+\begin{lstlisting}[language={[x86masm]Assembler}]
+MNEMONIC  operand1, operand2, operand3
+\end{lstlisting}
+
+\textbf{General Syntax Rules:}
+
+\begin{itemize}
+    \item \textbf{Mnemonics} are case-insensitive (ADD, add, AdD are identical)
+    \item \textbf{Operands} are separated by commas
+    \item \textbf{Registers} begin with R:
+    \begin{itemize}
+        \item R0--R15 (Clownfish mode)
+        \item R0--R31 (Tetra, Dragonet, RISC-V modes)
+        \item Semantic names also supported (AX, BX, SI, DI, etc.)
+    \end{itemize}
+    \item \textbf{Immediate values:}
+    \begin{itemize}
+        \item Decimal: 42
+        \item Hex: 0x2A, 0xFF
+        \item Binary: 0b101010, 0b1010
+        \item Character: 'A'
+    \end{itemize}
+    \item \textbf{Comments:} ; this is a comment
+    \item \textbf{Labels} end with a colon: loop\_start:
+    \item \textbf{Directives} begin with . (see Assembler Directives section)
+    \item \textbf{Whitespace} is ignored except inside strings
+\end{itemize}
+
+\subsection{Syntax Examples}
+
+\begin{lstlisting}
+; Case-insensitive mnemonics
+ADD R1, R2, R3
+add r1, r2, r3        ; equivalent to above
+
+; Immediate values
+MOVI R0, #42          ; decimal
+MOVI R1, #0x2A        ; hexadecimal
+MOVI R2, #0b101010    ; binary
+MOVI R3, #'A'         ; character literal
+
+; Labels and jumps
+loop_start:
+    ADD R1, R2, R3
+    DEC R4
+    JNZ loop_start    ; jump if not zero
+
+; Comments
+MOV R0, R1            ; copy R1 to R0
+\end{lstlisting}
+
+\section{Addressing Modes}
+
+The SeaBird ISA uses CISC-style addressing modes in the programmer-visible frontend, which are internally decomposed into RISC-like micro-ops by the backend execution engine. This unified addressing model is available across all operating modes.
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Mode} & \textbf{Syntax} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Mode} & \textbf{Syntax} & \textbf{Description} \\ \midrule
+\endhead
+Register Direct & R1 & Operand in register \\
+Immediate & \#42, \#0xFF & Constant value (decimal, hex, binary) \\
+Register Indirect & [R2] & Memory pointed by register \\
+Register + Offset & [R2+16], [R7+0x20] & Base + immediate displacement \\
+Base + Index (Scaled) & [R1+R3*4], [R2+R6*8] & Base + scaled index (typical array access) \\
+Base + Index + Displacement & [R4+R5*2+32] & Full complex addressing \\
+PC-relative & label, label(RIP) & PC-relative (Dragonet mode only) \\
+Absolute Address & [0x9000] & Direct memory address (primarily Clownfish/Tetra) \\ \bottomrule
+\end{longtable}
+
+\subsection{Addressing Mode Examples}
+
+\begin{lstlisting}
+; Register Direct
+MOV R1, R2                ; copy R2 to R1
+
+; Immediate
+MOVI R3, #42              ; load immediate value 42
+ADDI R4, #0xFF            ; add 255 to R4
+
+; Register Indirect
+LD R5, [R6]               ; load from address in R6
+ST [R7], R8               ; store R8 to address in R7
+
+; Register + Offset
+LD R1, [R2+16]            ; load from R2 + 16
+ST [R4+0x20], R3          ; store to R4 + 32
+
+; Base + Index (Scaled)
+LD R0, [R1+R3*4]          ; array access: base + index*4
+ST [R2+R6*8], R5          ; store with 8-byte stride
+
+; Base + Index + Displacement
+LD R7, [R4+R5*2+32]       ; complex: base + index*2 + 32
+
+; PC-relative (Dragonet mode)
+JMP forward               ; relative to current IP
+CALL function(RIP)        ; RIP-relative call
+
+; Absolute Address (Clownfish/Tetra)
+LD R1, [0x9000]           ; load from fixed address
+ST [0xFFFF], R2           ; store to fixed address
+
+forward:
+    RET
+\end{lstlisting}
+
+\subsection{Micro-Op Decomposition}
+
+Complex addressing modes are transparently broken into micro-ops:
+
+\begin{lstlisting}
+; Programmer writes:
+LD R1, [R2+R3*4+32]
+
+; Internal micro-op decomposition:
+uMUL  Rtmp, R3, #4        ; scale index
+uADD  Rtmp, R2, Rtmp      ; add base
+uADD  Rtmp, Rtmp, #32     ; add displacement
+uLOAD R1, [Rtmp]          ; perform load
+\end{lstlisting}
+
+\section{Instruction Formats}
+
+The SeaBird ISA presents compact, expressive CISC-style instruction formats to the programmer. Internally, the backend decomposes these into RISC-like micro-ops during execution.
+
+\subsection{CISC Frontend Formats}
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Format} & \textbf{Syntax} & \textbf{Usage} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Format} & \textbf{Syntax} & \textbf{Usage} \\ \midrule
+\endhead
+R-type & MNEMONIC Rdst, Rsrc1, Rsrc2 & Register-only operations \\
+ &  & (arithmetic, logic, compare, bitwise) \\
+I-type & MNEMONIC Rdst, Rsrc, \#imm & Immediate arithmetic / logic \\
+M-type & MNEMONIC Rdst, [mem] & Memory access (load/store) \\
+ & MNEMONIC [mem], Rsrc & \\
+B-type & BCOND label & Branches and jumps \\
+ & JMP label / JZ label & (conditional/unconditional) \\
+S-type & MNEMONIC sysop & System / control instructions \\
+ &  & (interrupts, mode-switch, flags) \\
+V-type & VADD V0, V1, V2 & Vector/matrix operations \\
+ & VMUL V3, V1, \#5 & \\
+X-type & MNEMONIC extended & Extended / microcoded instructions \\
+ &  & (multi-µop guaranteed expansion) \\ \bottomrule
+\end{longtable}
+
+\subsection{Detailed Format Descriptions}
+
+\subsubsection{R-Type (Register Only)}
+
+Register-to-register operations for arithmetic, logic, comparison, and bitwise operations.
+
+\begin{lstlisting}
+ADD   R1, R2, R3          ; R1 = R2 + R3
+SUB   R4, R5, R6          ; R4 = R5 - R6
+AND   R7, R8, R9          ; R7 = R8 & R9
+CMP   R1, R2              ; compare R1 and R2
+MAX   R3, R4              ; R3 = max(R3, R4)
+\end{lstlisting}
+
+\subsubsection{I-Type (Immediate)}
+
+Operations involving immediate (constant) values.
+
+\begin{lstlisting}
+ADDI  R1, R2, #42         ; R1 = R2 + 42
+MOVI  R3, #0xFF           ; R3 = 255
+CMPI  R4, #100            ; compare R4 with 100
+SUBI  R5, #8              ; R5 = R5 - 8
+\end{lstlisting}
+
+\subsubsection{M-Type (Memory Access)}
+
+Load and store operations with various addressing modes.
+
+\begin{lstlisting}
+LOAD  R1, [R2]            ; load from [R2]
+LOAD  R1, [R2+4]          ; load from [R2+4]
+LOAD  R1, [R2+R3*4]       ; load from [R2+R3*4]
+STORE [R4], R5            ; store R5 to [R4]
+STORE [R4+R5*2+32], R6    ; complex addressing
+\end{lstlisting}
+
+\subsubsection{B-Type (Branch / Jump)}
+
+Control flow operations, both conditional and unconditional.
+
+\begin{lstlisting}
+JMP   label               ; unconditional jump
+JZ    loop_start          ; jump if zero
+JNZ   exit                ; jump if not zero
+JG    greater             ; jump if greater
+CALL  function            ; call subroutine
+RET                       ; return from subroutine
+\end{lstlisting}
+
+\subsubsection{S-Type (System / Control)}
+
+System-level operations for interrupts, mode switching, and privileged operations.
+
+\begin{lstlisting}
+SYSCALL                   ; system call
+HLT                       ; halt processor
+CLI                       ; clear interrupts
+STI                       ; set interrupts
+RDCR  R1, CR0             ; read control register
+WRCR  CR2, R3             ; write control register
+\end{lstlisting}
+
+\subsubsection{V-Type (Vector / Matrix)}
+
+SIMD and vector operations operating on vector registers.
+
+\begin{lstlisting}
+VADD  V0, V1, V2          ; vector add
+VMUL  V3, V4, V5          ; vector multiply
+VSUB  V6, V7, V8          ; vector subtract
+VDIV  V0, V1, V2          ; vector divide
+VADD  V3, V1, #5          ; vector-scalar add
+\end{lstlisting}
+
+\subsubsection{X-Type (Extended / Microcoded)}
+
+Special instructions guaranteed to expand into multiple micro-ops. Used for complex operations.
+
+\begin{lstlisting}
+PUSHA                     ; push all GPRs (microcoded)
+POPA                      ; pop all GPRs (microcoded)
+ENTER #16                 ; create stack frame
+LEAVE                     ; destroy stack frame
+CPYB  R1, R2, #256        ; copy 256 bytes (microcoded loop)
+\end{lstlisting}
+
+\section{Instruction Encoding}
+
+\subsection{Binary Encoding Overview}
+
+The SeaBird ISA uses an x86-style modular binary encoding format. All instructions follow this layout:
+
+\begin{center}
+\texttt{[Prefix][Opcode][ModR/M][SIB][Displacement/Immediate]}
+\end{center}
+
+Each instruction may consist of the following components:
+
+\begin{enumerate}
+    \item \textbf{Prefix byte} (optional, 0--1 bytes) - Mode, size overrides, vector selectors
+    \item \textbf{Opcode byte(s)} (1--3 bytes) - Instruction identifier
+    \item \textbf{ModR/M byte} (optional) - Register/memory operand encoding
+    \item \textbf{SIB byte} (optional) - Scaled index addressing
+    \item \textbf{Immediate / Displacement} (0, 1, 4, or 8 bytes) - Constants and offsets
+\end{enumerate}
+
+This encoding scheme is:
+\begin{itemize}
+    \item \textbf{CISC-friendly:} Compact representation for programmers
+    \item \textbf{Mode-independent:} Same encoding works across 16/32/64-bit modes
+    \item \textbf{Extensible:} Easy to add vector and system instructions
+    \item \textbf{RISC-backend compatible:} Decomposes cleanly into micro-ops
+\end{itemize}
+
+\subsection{Prefix Byte (Optional, 1 byte)}
+
+The prefix byte modifies instruction behavior and is only required for overrides or special operations.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Bits} & \textbf{Purpose} & \textbf{Notes} \\ \midrule
+7-6 & Mode & 00=Clownfish (16-bit), 01=Tetra (32-bit), \\
+ &  & 10=Dragonet (64-bit), 11=Reserved \\
+5 & Address size override & Switch between default mode and 16/32/64-bit addresses \\
+4 & Operand size override & Switch default operand size (16/32/64-bit) \\
+3-0 & Vector/SIMD selector & Lane width, matrix/vector size, etc. \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Usage:} If instruction operates in default mode, prefix may be omitted. Required only for overrides, vector operations, or cross-mode compatibility.
+
+\subsection{Opcode Bytes (1--3 bytes)}
+
+Opcodes are organized by functional class for efficient decoding:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Class} & \textbf{Opcode Range} & \textbf{Count} & \textbf{Bytes} \\ \midrule
+Data movement & 0x00--0x1F & 24 instructions & 1--2 \\
+Arithmetic & 0x20--0x3F & 26 instructions & 1 \\
+Logic/Bit & 0x40--0x51 & 18 instructions & 1 \\
+Comparison & 0x52--0x5B & 10 instructions & 1 \\
+Branch/Control & 0x5C--0x71 & 20 instructions & 1--2 \\
+Memory extensions & 0x72--0x7D & 12 instructions & 2 \\
+System/Privileged & 0x7E--0x8C & 15 instructions & 2--3 \\
+Stack/Call & 0x8D--0x96 & 10 instructions & 1--2 \\
+SIMD/Vector & 0x97--0xA5 & 15 instructions & 2 \\
+Floating Point & 0xA6--0xAF & 10 instructions & 2 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Encoding Strategy:}
+\begin{itemize}
+    \item 1 byte: Basic arithmetic, logic, comparison, stack operations
+    \item 2 bytes: Memory operations, vector operations
+    \item 3 bytes: System, privileged, complex CISC instructions (e.g., LEAS, PUSHA/POPA)
+\end{itemize}
+
+\subsection{ModR/M Byte (Optional)}
+
+The ModR/M byte encodes register and memory operands, similar to x86 but simplified.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Bits} & \textbf{Meaning} \\ \midrule
+7-6 & mod (addressing mode) \\
+5-3 & reg (register operand or opcode extension) \\
+2-0 & r/m (register/memory operand) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{mod Field Values:}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{mod} & \textbf{Addressing Mode} \\ \midrule
+00 & [Rbase] - register indirect \\
+01 & [Rbase + imm8] - base + 8-bit displacement \\
+10 & [Rbase + imm32] - base + 32-bit displacement \\
+11 & Register direct (no memory access) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Note:} This encoding is cleaner than x86 with no legacy mode complications. It fits all 16/32/64-bit modes uniformly.
+
+\subsection{SIB Byte (Optional)}
+
+The SIB (Scale-Index-Base) byte enables scaled index addressing for array and structure access.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Bits} & \textbf{Meaning} \\ \midrule
+7-6 & scale (00=1, 01=2, 10=4, 11=8) \\
+5-3 & index register (R0--R7 in 3 bits, extended via prefix) \\
+2-0 & base register (R0--R7 in 3 bits, extended via prefix) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Usage:} Only present when instruction uses [base + index*scale + disp] addressing.
+
+\subsection{Displacement / Immediate (0, 1, 4, or 8 bytes)}
+
+Variable-length field for constants and memory offsets.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Size} & \textbf{Usage} & \textbf{Example} \\ \midrule
+0 bytes & No immediate/displacement & ADD R1, R2, R3 \\
+1 byte & Small displacement/immediate & LD R1, [R2+16] (Clownfish) \\
+4 bytes & 32-bit displacement/immediate & ADDI R3, \#0x12345678 (Tetra) \\
+8 bytes & 64-bit displacement/immediate & MOVI R4, \#0xCAFEBABE (Dragonet) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Addressing Modes Summary}
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Mode} & \textbf{Syntax} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Mode} & \textbf{Syntax} & \textbf{Description} \\ \midrule
+\endhead
+Register direct & Rdst & Simple register to register \\
+Memory absolute & [addr] & Direct memory access \\
+Register indirect & [Rbase] & Load/store through base register \\
+Base + offset & [Rbase + imm] & Small/large displacement \\
+Indexed & [Rbase + Rindex*scale + imm] & For arrays / structures \\
+Stack & PUSH/POP & Special SP-relative addressing \\ \bottomrule
+\end{longtable}
+
+\subsection{Encoding Examples}
+
+\subsubsection{Example 1: Simple Arithmetic}
+
+\begin{lstlisting}
+ADD R1, R2        ; 16-bit Clownfish mode
+\end{lstlisting}
+
+\textbf{Binary Encoding:}
+\begin{itemize}
+    \item No prefix (default mode)
+    \item Opcode: 0x20
+    \item ModR/M: mod=11 (register), reg=R2 (010), r/m=R1 (001)
+    \item Total: 2 bytes
+\end{itemize}
+
+\subsubsection{Example 2: Complex Addressing}
+
+\begin{lstlisting}
+LEAS R4, [R5+R6*4+16]    ; 32-bit Tetra mode
+\end{lstlisting}
+
+\textbf{Binary Encoding:}
+\begin{itemize}
+    \item Prefix: 0x40 (Tetra mode indicator)
+    \item Opcode: 0x1E (LEAS)
+    \item ModR/M: mod=10 (32-bit disp), reg=R4 (100), r/m=R5 (101)
+    \item SIB: scale=10 (4x), index=R6 (110), base=R5 (101)
+    \item Displacement: 4 bytes (0x00000010)
+    \item Total: 9 bytes
+\end{itemize}
+
+\subsubsection{Example 3: Vector Operation}
+
+\begin{lstlisting}
+VADD V0, V1, V2          ; 128-bit vector
+\end{lstlisting}
+
+\textbf{Binary Encoding:}
+\begin{itemize}
+    \item Prefix: 0x08 (vector selector: 128-bit)
+    \item Opcode: 0x97 (VADD)
+    \item Operands: encoded in following bytes (V0, V1, V2)
+    \item Total: 3--4 bytes
+\end{itemize}
+
+\subsubsection{Example 4: Immediate Load}
+
+\begin{lstlisting}
+MOVI R3, #0xDEADBEEF     ; 32-bit immediate
+\end{lstlisting}
+
+\textbf{Binary Encoding:}
+\begin{itemize}
+    \item No prefix (default operand size)
+    \item Opcode: 0x01 (MOVI)
+    \item ModR/M: mod=11, reg=000 (unused), r/m=R3 (011)
+    \item Immediate: 4 bytes (0xDEADBEEF)
+    \item Total: 6 bytes
+\end{itemize}
+
+\subsection{Encoding Legend}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning} \\ \midrule
+Instr & Mnemonic (with operands) \\
+Class & Instruction class (data/arithmetic/etc.) \\
+Opcode & Primary opcode byte(s) \\
+ModR/M & ModR/M byte usage (if applicable) \\
+SIB & SIB byte usage (if applicable) \\
+Imm/Disp & Immediate/displacement byte size \\
+Micro-Ops & Micro-op breakdown, internal RISC-like ops \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Notes:}
+
+\begin{itemize}
+    \item Rdst, Rsrc denote registers (R0--R31)
+    \item [mem] denotes memory operand
+    \item Prefix byte optional (mode, operand size, vector width)
+\end{itemize}
+
+\section{Instruction Encoding \& Micro-Op Mapping}
+
+This section provides the complete encoding details and micro-op decomposition for all 160 instructions in the SeaBird ISA.
+
+\subsection{Data Movement (24 instructions)}
+
+\begin{longtable}{@{}L{3.5cm}L{1.5cm}L{2cm}L{4.5cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+MOV Rdst, Rsrc & 0x00 & R-type & uMOV Rdst,Rsrc \\
+MOVI Rdst, \#imm & 0x01 & I-type (1/2/4/8B) & uMOV Rdst,\#imm \\
+MOVZX Rdst, Rsrc & 0x02 & R-type & uMOV Rdst,Rsrc; uZEXT Rdst \\
+MOVSX Rdst, Rsrc & 0x03 & R-type & uMOV Rdst,Rsrc; uSEXT Rdst \\
+MOVHI Rdst, Rsrc & 0x04 & R-type & uMOVHI Rdst,Rsrc \\
+MOVLO Rdst, Rsrc & 0x05 & R-type & uMOVLO Rdst,Rsrc \\
+MOVSWP Rdst, Rsrc & 0x06 & R-type & uBSWAP Rdst \\
+LD Rdst, [addr] & 0x10 & M-type + disp & uLOAD Rdst,[addr] \\
+ST [addr], Rsrc & 0x11 & M-type + disp & uSTORE [addr],Rsrc \\
+LDI Rdst, \#imm & 0x12 & I-type + disp & uLOAD Rdst,[\#addr+imm] \\
+LDB Rdst, [addr] & 0x13 & M-type (1B) & uLOAD.B Rdst,[addr] \\
+LDH Rdst, [addr] & 0x14 & M-type (2B) & uLOAD.H Rdst,[addr] \\
+LDW Rdst, [addr] & 0x15 & M-type (4B) & uLOAD.W Rdst,[addr] \\
+LDQ Rdst, [addr] & 0x16 & M-type (8B) & uLOAD.Q Rdst,[addr] \\
+STB [addr], Rsrc & 0x17 & M-type (1B) & uSTORE.B [addr],Rsrc \\
+STH [addr], Rsrc & 0x18 & M-type (2B) & uSTORE.H [addr],Rsrc \\
+STW [addr], Rsrc & 0x19 & M-type (4B) & uSTORE.W [addr],Rsrc \\
+STQ [addr], Rsrc & 0x1A & M-type (8B) & uSTORE.Q [addr],Rsrc \\
+LDP Rdst1, Rdst2, [addr] & 0x1B & M-type + pair & uLOAD Rdst1,[addr]; uLOAD Rdst2,[addr+sz] \\
+STP [addr], Rsrc1, Rsrc2 & 0x1C & M-type + pair & uSTORE [addr],Rsrc1; uSTORE [addr+sz],Rsrc2 \\
+LEA Rdst, [addr] & 0x1D & M-type & uADDR Rdst,[addr] \\
+LEAS Rdst, [base+idx*s+d] & 0x1E & M-type + SIB & uMUL tmp,idx,s; uADD tmp,base,tmp; uADD Rdst,tmp,d \\
+XCHG Rdst, Rsrc & 0x1F & R-type & uXCHG Rdst,Rsrc \\ \bottomrule
+\end{longtable}
+
+\subsection{Arithmetic (26 instructions)}
+
+\begin{longtable}{@{}L{3cm}L{1.5cm}L{1.8cm}L{4.8cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+ADD Rdst, Rsrc & 0x20 & R-type & uADD Rdst,Rsrc \\
+ADDI Rdst, \#imm & 0x21 & I-type (1/2/4/8B) & uADD Rdst,\#imm \\
+SUB Rdst, Rsrc & 0x22 & R-type & uSUB Rdst,Rsrc \\
+SUBI Rdst, \#imm & 0x23 & I-type (1/2/4/8B) & uSUB Rdst,\#imm \\
+MUL Rdst, Rsrc & 0x24 & R-type & uMUL Rdst,Rsrc \\
+MULI Rdst, \#imm & 0x25 & I-type (1/2/4/8B) & uMUL Rdst,\#imm \\
+DIV Rdst, Rsrc & 0x26 & R-type & uDIV Rdst,Rsrc \\
+DIVI Rdst, \#imm & 0x27 & I-type (1/2/4/8B) & uDIV Rdst,\#imm \\
+MOD Rdst, Rsrc & 0x28 & R-type & uMOD Rdst,Rsrc \\
+MODI Rdst, \#imm & 0x29 & I-type (1/2/4/8B) & uMOD Rdst,\#imm \\
+NEG Rdst & 0x2A & R-type (unary) & uNEG Rdst \\
+INC Rdst & 0x2B & R-type (unary) & uINC Rdst \\
+DEC Rdst & 0x2C & R-type (unary) & uDEC Rdst \\
+MULH Rdst, Rsrc & 0x2D & R-type (high bits) & uMULH Rdst,Rsrc \\
+UMUL Rdst, Rsrc & 0x2E & R-type (unsigned) & uUMUL Rdst,Rsrc \\
+UDIV Rdst, Rsrc & 0x2F & R-type (unsigned) & uUDIV Rdst,Rsrc \\
+ADDS Rdst, Rsrc & 0x30 & R-type (saturate) & uADD.SAT Rdst,Rsrc \\
+ADDU Rdst, Rsrc & 0x31 & R-type (sat uns) & uADD.USAT Rdst,Rsrc \\
+SUBS Rdst, Rsrc & 0x32 & R-type (saturate) & uSUB.SAT Rdst,Rsrc \\
+SUBU Rdst, Rsrc & 0x33 & R-type (sat uns) & uSUB.USAT Rdst,Rsrc \\
+ABS Rdst, Rsrc & 0x34 & R-type & uABS Rdst,Rsrc \\
+CLZ Rdst, Rsrc & 0x35 & R-type & uCLZ Rdst,Rsrc \\
+CTZ Rdst, Rsrc & 0x36 & R-type & uCTZ Rdst,Rsrc \\
+POPC Rdst, Rsrc & 0x37 & R-type & uPOPC Rdst,Rsrc \\ \bottomrule
+\end{longtable}
+
+\subsection{Logic \& Bit Operations (18 instructions)}
+
+\begin{longtable}{@{}L{3.2cm}L{1.5cm}L{1.7cm}L{4.8cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+AND Rdst, Rsrc & 0x40 & R-type & uAND Rdst,Rsrc \\
+OR Rdst, Rsrc & 0x41 & R-type & uOR Rdst,Rsrc \\
+XOR Rdst, Rsrc & 0x42 & R-type & uXOR Rdst,Rsrc \\
+NOT Rdst & 0x43 & R-type (unary) & uNOT Rdst \\
+NAND Rdst, Rsrc & 0x44 & R-type & uNAND Rdst,Rsrc \\
+NOR Rdst, Rsrc & 0x45 & R-type & uNOR Rdst,Rsrc \\
+XNOR Rdst, Rsrc & 0x46 & R-type & uXNOR Rdst,Rsrc \\
+SHL Rdst, Rsrc & 0x47 & R-type & uSHL Rdst,Rsrc \\
+SHR Rdst, Rsrc & 0x48 & R-type & uSHR Rdst,Rsrc \\
+SAR Rdst, Rsrc & 0x49 & R-type & uSAR Rdst,Rsrc \\
+ROL Rdst, Rsrc & 0x4A & R-type & uROL Rdst,Rsrc \\
+ROR Rdst, Rsrc & 0x4B & R-type & uROR Rdst,Rsrc \\
+BSET Rdst, bit & 0x4C & R-type + imm & uBSET Rdst,bit \\
+BCLR Rdst, bit & 0x4D & R-type + imm & uBCLR Rdst,bit \\
+BTOG Rdst, bit & 0x4E & R-type + imm & uBTOG Rdst,bit \\
+BTST Rdst, bit & 0x4F & R-type + imm & uBTST Rdst,bit \\
+MASK Rdst, Rsrc, mask & 0x50 & R-type + imm & uMASK Rdst,Rsrc,mask \\
+EXT Rdst, Rsrc, range & 0x51 & R-type + imm & uEXT Rdst,Rsrc,range \\ \bottomrule
+\end{longtable}
+
+\subsection{Comparison (10 instructions)}
+
+\begin{longtable}{@{}L{2.8cm}L{1.5cm}L{1.7cm}L{4.8cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+CMP Ra, Rb & 0x52 & R-type & uCMP Ra,Rb (set flags) \\
+CMPI Ra, \#imm & 0x53 & I-type & uCMP Ra,\#imm (set flags) \\
+CMPS Ra, Rb & 0x54 & R-type & uCMP.S Ra,Rb (signed) \\
+CMPU Ra, Rb & 0x55 & R-type & uCMP.U Ra,Rb (unsigned) \\
+TST Ra, Rb & 0x56 & R-type & uTST Ra,Rb (bitwise AND, set flags) \\
+TSTI Ra, \#imm & 0x57 & I-type & uTST Ra,\#imm (test bits) \\
+MAX Rdst, Rsrc & 0x58 & R-type & uMAX Rdst,Rsrc (max value) \\
+MIN Rdst, Rsrc & 0x59 & R-type & uMIN Rdst,Rsrc (min value) \\
+SLT Rdst, Rsrc & 0x5A & R-type & uSLT Rdst,Rsrc (set if less than) \\
+SGT Rdst, Rsrc & 0x5B & R-type & uSGT Rdst,Rsrc (set if greater) \\ \bottomrule
+\end{longtable}
+
+\subsection{Branch / Control Flow (20 instructions)}
+
+\begin{longtable}{@{}L{2.8cm}L{1.5cm}L{1.7cm}L{4.5cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+JMP label & 0x5C & B-type (rel) & uJMP PC+offset \\
+JMPA addr & 0x5D & B-type (abs) & uJMP addr \\
+CALL label & 0x5E & B-type (rel) & uPUSH ret\_addr; uJMP PC+offset \\
+CALLA addr & 0x5F & B-type (abs) & uPUSH ret\_addr; uJMP addr \\
+RET & 0x60 & B-type & uPOP PC \\
+JE label & 0x61 & B-type (cond) & uBRANCH\_IF ZF=1 \\
+JNE label & 0x62 & B-type (cond) & uBRANCH\_IF ZF=0 \\
+JG label & 0x63 & B-type (cond) & uBRANCH\_IF (SF=OF) \& ZF=0 \\
+JGE label & 0x64 & B-type (cond) & uBRANCH\_IF SF=OF \\
+JL label & 0x65 & B-type (cond) & uBRANCH\_IF SF!=OF \\
+JLE label & 0x66 & B-type (cond) & uBRANCH\_IF (SF!=OF) | ZF=1 \\
+JC label & 0x67 & B-type (cond) & uBRANCH\_IF CF=1 \\
+JNC label & 0x68 & B-type (cond) & uBRANCH\_IF CF=0 \\
+JO label & 0x69 & B-type (cond) & uBRANCH\_IF OF=1 \\
+JNO label & 0x6A & B-type (cond) & uBRANCH\_IF OF=0 \\
+JS label & 0x6B & B-type (cond) & uBRANCH\_IF SF=1 \\
+JNS label & 0x6C & B-type (cond) & uBRANCH\_IF SF=0 \\
+JZR reg, label & 0x6D & B-type (reg) & uBRANCH\_IF reg=0 \\
+JNZR reg, label & 0x6E & B-type (reg) & uBRANCH\_IF reg!=0 \\
+BRR reg & 0x6F & B-type (ind) & uJMP [reg] \\
+TRAP \#imm & 0x70 & S-type & uTRAP imm (exception) \\
+YIELD & 0x71 & S-type & uYIELD (scheduler hint) \\ \bottomrule
+\end{longtable}
+
+\subsection{Memory / Addressing Extensions (12 instructions)}
+
+\begin{longtable}{@{}L{3.2cm}L{1.5cm}L{1.7cm}L{4.5cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+PREFETCH [addr] & 0x72 & M-type & uPREFETCH [addr] (hint) \\
+FLUSH [addr] & 0x73 & M-type & uFLUSH [addr] (cache writeback) \\
+INVIC [addr] & 0x74 & M-type & uINVAL\_ICACHE [addr] \\
+INVDC [addr] & 0x75 & M-type & uINVAL\_DCACHE [addr] \\
+LDX Rdst, [addr+] & 0x76 & M-type & uLOAD Rdst,[addr]; uINC addr \\
+STX [addr+], Rsrc & 0x77 & M-type & uSTORE [addr],Rsrc; uINC addr \\
+LDN Rdst, [addr-] & 0x78 & M-type & uDEC addr; uLOAD Rdst,[addr] \\
+STN [addr-], Rsrc & 0x79 & M-type & uDEC addr; uSTORE [addr],Rsrc \\
+MOVM Rdst, mask & 0x7A & X-type & Multi-reg masked move (microcoded) \\
+CPYB dst, src, len & 0x7B & X-type & Byte copy loop (microcoded) \\
+CPYW dst, src, len & 0x7C & X-type & Word copy loop (microcoded) \\
+MEMFILL dst, val, len & 0x7D & X-type & Memory fill loop (microcoded) \\ \bottomrule
+\end{longtable}
+
+\subsection{System \& Privileged (15 instructions)}
+
+\begin{longtable}{@{}L{2.8cm}L{1.5cm}L{1.7cm}L{4.5cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+HLT & 0x7E & S-type & uHALT (stop execution) \\
+RESET & 0x7F & S-type & uRESET (soft reset) \\
+RDCR Rdst, CRn & 0x80 & S-type & uREAD\_CTRL\_REG Rdst,CRn \\
+WRCR CRn, Rsrc & 0x81 & S-type & uWRITE\_CTRL\_REG CRn,Rsrc \\
+SYSCALL & 0x82 & S-type & uSYSCALL (trap to kernel) \\
+SYSRET & 0x83 & S-type & uSYSRET (return from kernel) \\
+IRET & 0x84 & S-type & uIRET (return from interrupt) \\
+CLI & 0x85 & S-type & uCLEAR\_IF (disable interrupts) \\
+STI & 0x86 & S-type & uSET\_IF (enable interrupts) \\
+WFI & 0x87 & S-type & uWAIT\_FOR\_INTERRUPT \\
+RDTIME Rdst & 0x88 & S-type & uREAD\_TIMER Rdst \\
+RDTS Rdst & 0x89 & S-type & uREAD\_TIMESTAMP Rdst \\
+SLEEP \#imm & 0x8A & S-type + imm & uSLEEP \#imm (power mode) \\
+GETPID Rdst & 0x8B & S-type & uGET\_PROCESS\_ID Rdst \\
+GETTID Rdst & 0x8C & S-type & uGET\_THREAD\_ID Rdst \\ \bottomrule
+\end{longtable}
+
+\subsection{Stack \& Call Frame (10 instructions)}
+
+\begin{longtable}{@{}L{2.8cm}L{1.5cm}L{1.7cm}L{4.5cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+PUSH Rsrc & 0x8D & S-type & uDEC SP; uSTORE [SP],Rsrc \\
+POP Rdst & 0x8E & S-type & uLOAD Rdst,[SP]; uINC SP \\
+PUSHA & 0x8F & X-type & Push all GPRs (R0-R15, microcoded) \\
+POPA & 0x90 & X-type & Pop all GPRs (R15-R0, microcoded) \\
+ENTER \#framesize & 0x91 & X-type & uPUSH BP; uMOV BP,SP; uSUB SP,size \\
+LEAVE & 0x92 & X-type & uMOV SP,BP; uPOP BP \\
+PUSHF & 0x93 & S-type & uDEC SP; uSTORE [SP],FLAGS \\
+POPF & 0x94 & S-type & uLOAD FLAGS,[SP]; uINC SP \\
+PUSHQ regpair & 0x95 & S-type & Push register pair (64-bit) \\
+POPQ regpair & 0x96 & S-type & Pop register pair (64-bit) \\ \bottomrule
+\end{longtable}
+
+\subsection{SIMD / Vector (15 instructions)}
+
+\begin{longtable}{@{}L{2.8cm}L{1.5cm}L{1.7cm}L{4.5cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+VADD Vd, Va, Vb & 0x97 & V-type & Per-lane: uADD Vd[i],Va[i],Vb[i] \\
+VSUB Vd, Va, Vb & 0x98 & V-type & Per-lane: uSUB Vd[i],Va[i],Vb[i] \\
+VMUL Vd, Va, Vb & 0x99 & V-type & Per-lane: uMUL Vd[i],Va[i],Vb[i] \\
+VDIV Vd, Va, Vb & 0x9A & V-type & Per-lane: uDIV Vd[i],Va[i],Vb[i] \\
+VAND Vd, Va, Vb & 0x9B & V-type & Per-lane: uAND Vd[i],Va[i],Vb[i] \\
+VOR Vd, Va, Vb & 0x9C & V-type & Per-lane: uOR Vd[i],Va[i],Vb[i] \\
+VXOR Vd, Va, Vb & 0x9D & V-type & Per-lane: uXOR Vd[i],Va[i],Vb[i] \\
+VSHL Vd, Va, \#imm & 0x9E & V-type + imm & Per-lane: uSHL Vd[i],Va[i],imm \\
+VSHR Vd, Va, \#imm & 0x9F & V-type + imm & Per-lane: uSHR Vd[i],Va[i],imm \\
+VDUP Vd, Va & 0xA0 & V-type & Broadcast: Vd[i]=Va[0] for all i \\
+VLD Vd, [addr] & 0xA1 & V-type + M & Load vector from memory \\
+VST [addr], Vd & 0xA2 & V-type + M & Store vector to memory \\
+VABS Vd, Va & 0xA3 & V-type & Per-lane: uABS Vd[i],Va[i] \\
+VMAX Vd, Va, Vb & 0xA4 & V-type & Per-lane: uMAX Vd[i],Va[i],Vb[i] \\
+VMIN Vd, Va, Vb & 0xA5 & V-type & Per-lane: uMIN Vd[i],Va[i],Vb[i] \\ \bottomrule
+\end{longtable}
+
+\subsection{Floating Point (10 instructions)}
+
+\begin{longtable}{@{}L{2.8cm}L{1.5cm}L{1.7cm}L{4.5cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Opcode} & \textbf{Encoding} & \textbf{Micro-Operations} \\ \midrule
+\endhead
+FADD Fd, Fa, Fb & 0xA6 & R-type (FP) & fADD Fd,Fa,Fb (IEEE 754) \\
+FSUB Fd, Fa, Fb & 0xA7 & R-type (FP) & fSUB Fd,Fa,Fb (IEEE 754) \\
+FMUL Fd, Fa, Fb & 0xA8 & R-type (FP) & fMUL Fd,Fa,Fb (IEEE 754) \\
+FDIV Fd, Fa, Fb & 0xA9 & R-type (FP) & fDIV Fd,Fa,Fb (IEEE 754) \\
+FSQRT Fd, Fa & 0xAA & R-type (FP) & fSQRT Fd,Fa (square root) \\
+FCMP Fa, Fb & 0xAB & R-type (FP) & fCMP Fa,Fb (set FP flags) \\
+FCVTI Fd, Ra & 0xAC & R-type (conv) & Convert integer Ra to float Fd \\
+FCVTS Ra, Fd & 0xAD & R-type (conv) & Convert float Fd to integer Ra \\
+FNEG Fd, Fa & 0xAE & R-type (FP) & fNEG Fd,Fa (negate) \\
+FABS Fd, Fa & 0xAF & R-type (FP) & fABS Fd,Fa (absolute value) \\ \bottomrule
+\end{longtable}
+
+\section{Micro-Operations Architecture}
+
+\subsection{Hybrid CISC/RISC Design Philosophy}
+
+The SeaBird ISA employs a hybrid architecture combining a CISC frontend with a RISC backend, similar to modern processors from Intel and AMD. This design provides:
+
+\begin{itemize}
+    \item \textbf{CISC Frontend:} Expressive, compact instructions visible to programmers and compilers
+    \item \textbf{RISC Backend:} Simple, uniform micro-operations (µops) executed by the CPU pipeline
+    \item \textbf{Performance Benefits:} Combines code density of CISC with execution efficiency of RISC
+\end{itemize}
+
+\textbf{Execution Flow:}
+
+\begin{enumerate}
+    \item Programmer writes CISC-style instructions (e.g., LOAD R1, [R2+R3*4+32])
+    \item Frontend decoder translates to RISC-like micro-ops
+    \item Backend execution engine processes micro-ops through standard pipeline stages
+    \item Micro-ops can be reordered, fused, and optimized independently
+\end{enumerate}
+
+This approach enables:
+\begin{itemize}
+    \item Out-of-order execution
+    \item Micro-op fusion and optimization
+    \item Superscalar dispatch
+    \item Register renaming at the µop level
+    \item Cache and branch prediction at µop granularity
+\end{itemize}
+
+\subsection{Micro-Op Decomposition Rules}
+
+The following rules govern how CISC instructions decompose into RISC-like micro-operations:
+
+\subsubsection{Rule 1: Single-Operation Instructions $\rightarrow$ 1 µop}
+
+Simple register-to-register operations map directly to single micro-ops.
+
+\begin{lstlisting}
+; CISC Instruction -> Micro-Op
+ADD R1, R2, R3     -> uADD R1, R2, R3
+XOR R4, R5         -> uXOR R4, R5
+NEG R3             -> uNEG R3
+MOV R6, R7         -> uMOV R6, R7
+\end{lstlisting}
+
+\subsubsection{Rule 2: Memory Operations $\rightarrow$ 2--3 µops}
+
+Load/store with simple addressing requires address calculation plus memory access.
+
+\begin{lstlisting}
+; CISC Instruction
+LOAD R1, [R2+16]
+
+; Micro-Op Breakdown
+uADD  Rtmp, R2, #16       ; compute effective address
+uLOAD R1, [Rtmp]          ; perform load
+\end{lstlisting}
+
+\begin{lstlisting}
+; CISC Instruction
+STORE [R3+8], R4
+
+; Micro-Op Breakdown
+uADD   Rtmp, R3, #8       ; compute effective address
+uSTORE [Rtmp], R4         ; perform store
+\end{lstlisting}
+
+\subsubsection{Rule 3: Complex Addressing Modes $\rightarrow$ 3--5 µops}
+
+Complex addressing with base + scaled index + displacement requires multiple steps.
+
+\begin{lstlisting}
+; CISC Instruction
+LOAD R1, [R2+R3*4+32]
+
+; Micro-Op Breakdown
+uMUL  Rtmp1, R3, #4       ; scale index by 4
+uADD  Rtmp2, R2, Rtmp1    ; add base to scaled index
+uADD  Rtmp2, Rtmp2, #32   ; add displacement
+uLOAD R1, [Rtmp2]         ; perform load
+\end{lstlisting}
+
+\subsubsection{Rule 4: Arithmetic with Immediate $\rightarrow$ 1--2 µops}
+
+Immediate arithmetic typically maps to single µop if immediate fits in encoding.
+
+\begin{lstlisting}
+; CISC Instruction
+ADDI R1, R2, #7
+
+; Micro-Op Breakdown
+uADD R1, R2, #7           ; single µop with embedded immediate
+\end{lstlisting}
+
+For large immediates:
+
+\begin{lstlisting}
+; CISC Instruction
+ADDI R1, R2, #0xDEADBEEF
+
+; Micro-Op Breakdown
+uMOVI Rtmp, #0xDEADBEEF   ; load large immediate
+uADD  R1, R2, Rtmp        ; perform addition
+\end{lstlisting}
+
+\subsubsection{Rule 5: CISC-Style Compound Operations $\rightarrow$ 2--6 µops}
+
+Complex operations combining multiple actions decompose into sequential µops.
+
+\begin{lstlisting}
+; CISC Instruction
+PUSH [R3+8]
+
+; Micro-Op Breakdown
+uADD   Rtmp1, R3, #8      ; compute source address
+uLOAD  Rtmp2, [Rtmp1]     ; load value from memory
+uADD   RSP, RSP, #-8      ; adjust stack pointer
+uSTORE [RSP], Rtmp2       ; store to stack
+\end{lstlisting}
+
+\begin{lstlisting}
+; CISC Instruction
+CALL label
+
+; Micro-Op Breakdown
+uMOVI  Rtmp1, return_addr ; load return address
+uSTORE [RSP-8], Rtmp1     ; push return address
+uADD   RSP, RSP, #-8      ; adjust stack pointer
+uJMP   label              ; jump to target
+\end{lstlisting}
+
+\subsubsection{Rule 6: Branches $\rightarrow$ 1 µop}
+
+Branch instructions map directly to conditional or unconditional µop branches.
+
+\begin{lstlisting}
+; CISC Instruction -> Micro-Op
+JZ  label          -> uBRANCH_IF_ZERO PC+offset
+JMP target         -> uJMP PC+offset
+RET                -> uRET (implicit load+jump)
+\end{lstlisting}
+
+\subsubsection{Rule 7: Vector Operations $\rightarrow$ N µops}
+
+Vector operations decompose into per-lane µops based on vector width.
+
+\begin{lstlisting}
+; CISC Instruction
+VADD V0, V1, V2
+
+; Micro-Op Breakdown (for 4-lane vector)
+uADD V0.lane0, V1.lane0, V2.lane0
+uADD V0.lane1, V1.lane1, V2.lane1
+uADD V0.lane2, V1.lane2, V2.lane2
+uADD V0.lane3, V1.lane3, V2.lane3
+\end{lstlisting}
+
+\textbf{Note:} Vector µops may execute in parallel on SIMD execution units.
+
+\subsubsection{Rule 8: Microcoded Instructions $\rightarrow$ Variable µops}
+
+Special or rarely-used instructions may invoke microcode sequences.
+
+\begin{lstlisting}
+; CISC Instruction
+PUSHA                     ; push all GPRs
+
+; Micro-Op Breakdown (microcoded)
+uSTORE [RSP-8],  R0
+uSTORE [RSP-16], R1
+uSTORE [RSP-24], R2
+...
+uSTORE [RSP-248], R31
+uADD RSP, RSP, #-256
+\end{lstlisting}
+
+\subsection{Micro-Op Execution Properties}
+
+\subsubsection{Micro-Op Characteristics}
+
+All micro-ops share common properties enabling efficient backend execution:
+
+\begin{itemize}
+    \item \textbf{Fixed-format:} Uniform µop structure simplifies decode and dispatch
+    \item \textbf{Single-operation:} Each µop performs one elementary action
+    \item \textbf{Explicit operands:} No implicit side effects (except flags)
+    \item \textbf{Register-based:} Temporary registers (T0--T3) used for intermediate values
+    \item \textbf{Predictable latency:} Most µops have 1-cycle execution time
+\end{itemize}
+
+\subsubsection{Backend Optimization Opportunities}
+
+The µop stream enables aggressive backend optimizations:
+
+\begin{itemize}
+    \item \textbf{Micro-op fusion:} Adjacent µops combined into single operation
+    \item \textbf{Register renaming:} Eliminate false dependencies
+    \item \textbf{Out-of-order execution:} Independent µops execute in parallel
+    \item \textbf{Speculative execution:} Branch prediction at µop granularity
+    \item \textbf{Memory disambiguation:} Reorder loads/stores when safe
+\end{itemize}
+
+\subsubsection{Example: Full Instruction Pipeline}
+
+\begin{lstlisting}
+; Programmer writes:
+ADD R1, R2, [R3+R4*8+64]
+
+; Frontend decodes to micro-ops:
+uMUL  T0, R4, #8          ; cycle 1: scale index
+uADD  T1, R3, T0          ; cycle 2: add base
+uADD  T1, T1, #64         ; cycle 3: add displacement
+uLOAD T2, [T1]            ; cycle 4-6: memory access
+uADD  R1, R2, T2          ; cycle 7: final addition
+
+; Backend may optimize to:
+; - Fuse address calculation µops
+; - Execute uMUL and other ops out-of-order
+; - Rename T0, T1, T2 to physical registers
+; - Overlap memory access with other work
+\end{lstlisting}
+
+\section{Instruction Set Reference}
+
+The SeaBird ISA defines 160 instructions across 10 functional categories. Each instruction may decompose into one or more micro-ops during execution.
+
+\subsection{Data Movement (24 instructions)}
+
+\subsubsection{Basic Moves}
+
+\begin{lstlisting}
+MOV     dst, src          ; register or memory move
+MOVI    dst, imm          ; move immediate
+MOVZX   dst, src          ; zero-extend
+MOVSX   dst, src          ; sign-extend
+MOVHI   dst, src          ; move high half
+MOVLO   dst, src          ; move low half
+MOVSWP  dst, src          ; byte-swap endian
+\end{lstlisting}
+
+\subsubsection{Memory Access}
+
+\begin{lstlisting}
+LD      dst, [addr]       ; load
+ST      [addr], src       ; store
+LDI     dst, imm(addr)    ; load from immediate address
+LDB     dst, [addr]       ; load byte
+LDH     dst, [addr]       ; load halfword
+LDW     dst, [addr]       ; load word
+LDQ     dst, [addr]       ; load quadword
+STB     [addr], src       ; store byte
+STH     [addr], src       ; store halfword
+STW     [addr], src       ; store word
+STQ     [addr], src       ; store quadword
+\end{lstlisting}
+
+\subsubsection{Special Variants}
+
+\begin{lstlisting}
+LDP     dst1, dst2, [addr]      ; load pair
+STP     [addr], src1, src2      ; store pair
+LEA     dst, [addr]             ; compute effective address
+LEAS    dst, [base + index*scale + imm]
+XCHG    dst, src                ; atomic swap
+\end{lstlisting}
+
+\subsection{Arithmetic (26 instructions)}
+
+\subsubsection{Integer Arithmetic}
+
+\begin{lstlisting}
+ADD     r, v              ; add
+ADDI    r, imm            ; add immediate
+SUB     r, v              ; subtract
+SUBI    r, imm            ; subtract immediate
+MUL     dst, src          ; multiply
+MULI    dst, imm          ; multiply immediate
+DIV     dst, src          ; divide
+DIVI    dst, imm          ; divide immediate
+MOD     dst, src          ; modulo
+MODI    dst, imm          ; modulo immediate
+NEG     r                 ; negate
+INC     r                 ; increment
+DEC     r                 ; decrement
+\end{lstlisting}
+
+\subsubsection{Extended / 64-bit}
+
+\begin{lstlisting}
+MULH    dst, src          ; high-half multiply
+UMUL    dst, src          ; unsigned multiply
+UDIV    dst, src          ; unsigned divide
+\end{lstlisting}
+
+\subsubsection{Saturating Arithmetic}
+
+\begin{lstlisting}
+ADDS    dst, src          ; signed saturating add
+ADDU    dst, src          ; unsigned saturating add
+SUBS    dst, src          ; signed saturating subtract
+SUBU    dst, src          ; unsigned saturating subtract
+\end{lstlisting}
+
+\subsubsection{Bit Arithmetic}
+
+\begin{lstlisting}
+ABS     dst, src          ; absolute value
+CLZ     dst, src          ; count leading zeros
+CTZ     dst, src          ; count trailing zeros
+POPC    dst, src          ; popcount
+\end{lstlisting}
+
+\subsection{Logic \& Bit Operations (18 instructions)}
+
+\begin{lstlisting}
+AND     r, v              ; logical AND
+OR      r, v              ; logical OR
+XOR     r, v              ; logical XOR
+NOT     r                 ; logical NOT
+NAND    r, v              ; NAND
+NOR     r, v              ; NOR
+XNOR    r, v              ; XNOR
+SHL     r, v              ; shift left
+SHR     r, v              ; shift right
+SAR     r, v              ; shift arithmetic right
+ROL     r, v              ; rotate left
+ROR     r, v              ; rotate right
+BSET    r, bit            ; bit set
+BCLR    r, bit            ; bit clear
+BTOG    r, bit            ; bit toggle
+BTST    dst, bit          ; test bit
+MASK    dst, src, mask    ; apply mask
+EXT     dst, src, bitrange ; extract bit range
+\end{lstlisting}
+
+\subsection{Comparison (10 instructions)}
+
+\begin{lstlisting}
+CMP     a, b              ; compare (sets flags)
+CMPI    a, imm            ; compare immediate
+CMPS    a, b              ; signed compare
+CMPU    a, b              ; unsigned compare
+TST     a, b              ; logical test
+TSTI    a, imm            ; test immediate
+MAX     dst, src          ; maximum
+MIN     dst, src          ; minimum
+SLT     dst, src          ; set if less than
+SGT     dst, src          ; set if greater than
+\end{lstlisting}
+
+\subsection{Branching \& Control Flow (20 instructions)}
+
+\subsubsection{Unconditional}
+
+\begin{lstlisting}
+JMP     lbl               ; jump to label
+JMPA    addr              ; jump to absolute address
+CALL    lbl               ; call subroutine
+CALLA   addr              ; call absolute address
+RET                       ; return from subroutine
+\end{lstlisting}
+
+\subsubsection{Conditional (flag-based)}
+
+\begin{lstlisting}
+JE      lbl               ; jump if equal
+JNE     lbl               ; jump if not equal
+JG      lbl               ; jump if greater
+JGE     lbl               ; jump if greater or equal
+JL      lbl               ; jump if less
+JLE     lbl               ; jump if less or equal
+JC      lbl               ; jump if carry
+JNC     lbl               ; jump if not carry
+JO      lbl               ; jump if overflow
+JNO     lbl               ; jump if not overflow
+JS      lbl               ; jump if sign
+JNS     lbl               ; jump if not sign
+\end{lstlisting}
+
+\subsubsection{Register-based}
+
+\begin{lstlisting}
+JZR     reg, lbl          ; jump if register zero
+JNZR    reg, lbl          ; jump if register not zero
+BRR     reg               ; jump via register
+\end{lstlisting}
+
+\subsubsection{Special}
+
+\begin{lstlisting}
+TRAP    imm               ; software trap
+YIELD                     ; yield execution
+\end{lstlisting}
+
+\subsection{Memory / Addressing Extensions (12 instructions)}
+
+\begin{lstlisting}
+PREFETCH    [addr]        ; prefetch cache line
+FLUSH       [addr]        ; flush cache line
+INVIC       [addr]        ; invalidate icache line
+INVDC       [addr]        ; invalidate dcache line
+LDX         dst, [addr+]  ; load and post-increment
+STX         [addr+], src  ; store and post-increment
+LDN         dst, [addr-]  ; load and post-decrement
+STN         [addr-], src  ; store and post-decrement
+MOVM        dst, mask     ; masked move
+CPYB        dst, src, len ; copy bytes
+CPYW        dst, src, len ; copy words
+MEMFILL     dst, value, len ; fill memory
+\end{lstlisting}
+
+\subsection{System \& Privileged (15 instructions)}
+
+\begin{lstlisting}
+HLT                       ; halt processor
+RESET                     ; system reset
+RDCR    dst, crN          ; read control register
+WRCR    crN, src          ; write control register
+SYSCALL                   ; system call
+SYSRET                    ; return from syscall
+IRET                      ; interrupt return
+CLI                       ; clear interrupts
+STI                       ; set interrupts
+WFI                       ; wait for interrupt
+RDTIME  dst               ; read time
+RDTS    dst               ; read timestamp
+SLEEP   imm               ; sleep for duration
+GETPID                    ; get process ID
+GETTID                    ; get thread ID
+\end{lstlisting}
+
+\subsection{Stack \& Call Frame (10 instructions)}
+
+\begin{lstlisting}
+PUSH    r                 ; push register
+POP     r                 ; pop register
+PUSHA                     ; push all GPRs
+POPA                      ; pop all GPRs
+ENTER   imm               ; create stack frame
+LEAVE                     ; destroy stack frame
+PUSHF                     ; push flags
+POPF                      ; pop flags
+PUSHQ   regpair           ; push register pair
+POPQ    regpair           ; pop register pair
+\end{lstlisting}
+
+\subsection{SIMD / Vector (15 instructions)}
+
+Assuming 128-bit or 256-bit V registers:
+
+\begin{lstlisting}
+VADD    vd, va, vb        ; vector add
+VSUB    vd, va, vb        ; vector subtract
+VMUL    vd, va, vb        ; vector multiply
+VDIV    vd, va, vb        ; vector divide
+VAND    vd, va, vb        ; vector AND
+VOR     vd, va, vb        ; vector OR
+VXOR    vd, va, vb        ; vector XOR
+VSHL    vd, va, imm       ; vector shift left
+VSHR    vd, va, imm       ; vector shift right
+VDUP    vd, va            ; vector duplicate
+VLD     vd, [addr]        ; vector load
+VST     [addr], vd        ; vector store
+VABS    vd, va            ; vector absolute value
+VMAX    vd, va, vb        ; vector maximum
+VMIN    vd, va, vb        ; vector minimum
+\end{lstlisting}
+
+\subsection{Floating Point (10 instructions)}
+
+\begin{lstlisting}
+FADD    fd, fa, fb        ; floating-point add
+FSUB    fd, fa, fb        ; floating-point subtract
+FMUL    fd, fa, fb        ; floating-point multiply
+FDIV    fd, fa, fb        ; floating-point divide
+FSQRT   fd, fa            ; floating-point square root
+FCMP    fa, fb            ; floating-point compare
+FCVTI   fd, ra            ; convert int to float
+FCVTS   ra, fd            ; convert float to int
+FNEG    fd                ; floating-point negate
+FABS    fd                ; floating-point absolute value
+\end{lstlisting}
+
+\textbf{Total: 160 instructions}
+
+\section{Assembler Directives}
+
+This section documents all assembler directives supported by the toolchain. Directives control code organization, symbol visibility, data layout, optimization behavior, and architecture-specific features.
+
+\subsection{Code \& Data Layout Directives}
+
+\begin{description}
+\item[\texttt{.text}] Begin a code section. Assembler switches to instruction-emission mode.
+
+\item[\texttt{.data}] Begin a data section. Used for static variables, lookup tables, and buffers.
+
+\item[\texttt{.bss}] Begin an uninitialized data section. Reserves space without emitting bytes.
+
+\item[\texttt{.align \textit{n}}] Align the next emitted object to an \textit{n}-byte boundary. Particularly beneficial for aligning instructions or micro-tables in CISC frontend code.
+
+\item[\texttt{.org \textit{addr}}] Set the absolute location counter to \textit{addr}. Primarily used for firmware, vector tables, and boot ROM.
+\end{description}
+
+\subsection{Symbol \& Label Directives}
+
+\begin{description}
+\item[\texttt{.global \textit{symbol}}] Export a symbol for use by other modules.
+
+\item[\texttt{.extern \textit{symbol}}] Declare a symbol to be resolved by the linker.
+
+\item[\texttt{.equ \textit{name}, \textit{value}}] Create a constant. Equivalent to \texttt{\#define} in C.
+
+\item[\texttt{.set \textit{name}, \textit{value}}] Same as \texttt{.equ}, but may be reassigned later.
+
+\item[\texttt{.macro \textit{name} \textit{args...}}] Begin a macro definition.
+
+\item[\texttt{.endm}] End a macro definition.
+\end{description}
+
+\subsection{Data Definition Directives}
+
+\begin{description}
+\item[\texttt{.byte \textit{b1}, \textit{b2}, ...}] Emit raw 8-bit bytes.
+
+\item[\texttt{.word \textit{w1}, \textit{w2}, ...}] Emit 16-bit values.
+
+\item[\texttt{.dword \textit{d1}, \textit{d2}, ...}] Emit 32-bit values.
+
+\item[\texttt{.qword \textit{q1}, \textit{q2}, ...}] Emit 64-bit values.
+
+\item[\texttt{.float \textit{f1}, \textit{f2}, ...}] Emit 32-bit IEEE floating-point values.
+
+\item[\texttt{.double \textit{d1}, \textit{d2}, ...}] Emit 64-bit IEEE floating-point values.
+
+\item[\texttt{.ascii "\textit{text}"}] Emit raw ASCII bytes without null terminator.
+
+\item[\texttt{.asciz "\textit{text}"} / \texttt{.string "\textit{text}"}] Emit a null-terminated string.
+
+\item[\texttt{.space \textit{n}}] Reserve \textit{n} bytes of space (zero-initialized or uninitialized).
+\end{description}
+
+\subsection{Control Directives}
+
+\begin{description}
+\item[\texttt{.include "\textit{file}"}] Insert another source file at this location.
+
+\item[\texttt{.ifdef \textit{SYM}} / \texttt{.ifndef \textit{SYM}}] Begin conditional assembly block.
+
+\item[\texttt{.endif}] End conditional assembly block.
+\end{description}
+
+\subsection{Architecture, Mode \& Optimization Control}
+
+These directives are critical for controlling behavior in the hybrid ISA environment.
+
+\begin{description}
+\item[\texttt{.cpu \textit{model}}] Declare target CPU model or extension level. Enables assembler warnings if instructions are not supported on the specified model.
+
+\item[\texttt{.arch \textit{ext1}, \textit{ext2}, ...}] Enable optional ISA extensions (e.g., \texttt{VECTOR}, \texttt{SYS}, \texttt{CRYPTO}).
+
+\item[\texttt{.mopt \textit{level}}] Set assembler micro-op optimization level:
+\begin{itemize}
+\item \texttt{0} -- No micro-fusion (debug-friendly)
+\item \texttt{1} -- Allow simple micro-op fusion
+\item \texttt{2} -- Full aggressive micro-crunching mode
+\end{itemize}
+
+\item[\texttt{.mode \textit{MODE\_NAME}}] Switch code-generation mode. Supported modes include:
+\begin{itemize}
+\item \texttt{CLOWNFISH} -- 16-bit legacy mode
+\item \texttt{TETRA} -- 32-bit base mode
+\item \texttt{DRAGONET} -- 64-bit Meisei mode
+\item \texttt{DROPLET} -- 128-bit hyper mode
+\item \texttt{REALTIME} -- Disallow slow CISC expansions; enforce micro-op minimality
+\end{itemize}
+
+\item[\texttt{.uops on/off}] Show generated micro-ops in listing output.
+\end{description}
+
+\subsection{Debugging, Listing \& Metadata}
+
+\begin{description}
+\item[\texttt{.file "\textit{name}"}] Set debug filename for debugging symbols.
+
+\item[\texttt{.line \textit{n}}] Force encoding of source line number \textit{n} for debugging.
+
+\item[\texttt{.section \textit{name}}] Create or switch to user-defined sections. Useful for custom loaders or non-standard binary formats.
+
+\item[\texttt{.message "\textit{text}"}] Print informational message during assembly.
+
+\item[\texttt{.warning "\textit{text}"}] Print warning message (assembly continues).
+
+\item[\texttt{.error "\textit{text}"}] Emit fatal error and halt assembly.
+\end{description}
+
+\subsection{Special Optimization Directives}
+
+These directives provide fine-grained control over assembler optimization behavior.
+
+\begin{description}
+\item[\texttt{.hint microburst}] Mark the following block as performance-critical. Instructs the optimizer to apply aggressive optimizations.
+
+\item[\texttt{.prefetch \textit{addr}}] Emit an embedded prefetch hint micro-op for address \textit{addr}.
+
+\item[\texttt{.autovec on/off}] Enable or disable automatic loop vectorization by the assembler.
+
+\item[\texttt{.trustme}] Disable \textbf{all} safety checks. Assembler will accept code without validation. \textit{Use with extreme caution.}
+
+\item[\texttt{.sleepdeprived}] Convenience directive equivalent to:
+\begin{verbatim}
+    .mopt 2
+    .uops on
+    .autovec on
+\end{verbatim}
+Enables maximum optimization and diagnostic output. Named for late-night coding sessions.
+\end{description}
+
+\section{Example Instructions With Micro-Op Breakdown}
+
+\begin{longtable}{@{}L{2.8cm}L{7cm}@{}}
+\toprule
+\textbf{Instruction} & \textbf{Micro-Ops} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Instruction} & \textbf{Micro-Ops} \\ \midrule
+\endhead
+ADD R1,R2,R3 & uADD R1,R2,R3 \\
+LOAD R1,[R2+R3*4+32] & uMUL Rtmp,R3,\#4; uADD Rtmp,R2,Rtmp; uADD Rtmp,Rtmp,\#32; uLOAD R1,[Rtmp] \\
+CALL label & uMOVI TMP1,return\_addr; uSTORE [SP-8],TMP1; uALU SP,SP,-8,ADD; uJMP label \\
+RET & uLOAD TMP1,[SP]; uALU SP,SP,8,ADD; uJMP TMP1 \\
+VADD V0,V1,V2 & loop over lanes: uADD lane0,lane1,lane2 \\ \bottomrule
+\end{longtable}
+
+\section{Instruction Latency \& Performance Characteristics}
+
+\subsection{Typical Instruction Latencies}
+
+Performance characteristics for a reference implementation with out-of-order execution:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Operation Type} & \textbf{Latency} & \textbf{Throughput} \\ \midrule
+Single µop (ADD, MOV, XOR) & 1 cycle & 4/cycle \\
+Memory load (L1 hit) & 4 cycles & 2/cycle \\
+Memory store (L1 hit) & 1 cycle & 2/cycle \\
+Integer multiply & 3 cycles & 1/cycle \\
+Integer divide & 10--20 cycles & 1/10 cycles \\
+Floating-point add/sub & 3 cycles & 2/cycle \\
+Floating-point multiply & 4 cycles & 2/cycle \\
+Floating-point divide & 10--15 cycles & 1/10 cycles \\
+Vector ops (per lane) & 1--4 cycles & varies \\
+Microcoded instructions & 3--20 cycles & varies \\
+Branch (predicted) & 1 cycle & 2/cycle \\
+Branch (mispredicted) & 15--20 cycles & penalty \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cache and Memory Hierarchy}
+
+Typical implementation memory subsystem:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Level} & \textbf{Size} & \textbf{Latency} & \textbf{Bandwidth} \\ \midrule
+L1 Data Cache & 32--64 KB & 4 cycles & 64 GB/s \\
+L1 Instruction Cache & 32--64 KB & 4 cycles & 64 GB/s \\
+L2 Unified Cache & 256--512 KB & 12 cycles & 32 GB/s \\
+L3 Unified Cache & 4--16 MB & 40 cycles & 16 GB/s \\
+Main Memory (DDR4) & 8--64 GB & 100--300 cycles & 25 GB/s \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Pipeline Characteristics}
+
+\begin{itemize}
+    \item \textbf{Pipeline depth:} 14--20 stages (typical superscalar implementation)
+    \item \textbf{Fetch width:} 4--6 instructions per cycle
+    \item \textbf{Decode width:} 4--6 instructions → 8--12 µops per cycle
+    \item \textbf{Execution width:} 8--10 µops per cycle
+    \item \textbf{Retire width:} 4--6 instructions per cycle
+    \item \textbf{ROB size:} 192--256 µops (reorder buffer)
+    \item \textbf{Branch prediction:} Two-level adaptive with 4K--8K entry BTB
+\end{itemize}
+
+\section{FLAGS Register}
+
+\subsection{Status Flags}
+
+The FLAGS register contains condition codes and processor state. Bits are arranged as follows:
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Bit} & \textbf{Name} & \textbf{Symbol} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Bit} & \textbf{Name} & \textbf{Symbol} & \textbf{Description} \\ \midrule
+\endhead
+0 & Carry & CF & Carry out of MSB or borrow \\
+1 & Reserved & -- & Must be 0 \\
+2 & Parity & PF & Even parity of low byte \\
+3 & Reserved & -- & Must be 0 \\
+4 & Auxiliary Carry & AF & Carry from bit 3 to bit 4 \\
+5 & Reserved & -- & Must be 0 \\
+6 & Zero & ZF & Result is zero \\
+7 & Sign & SF & Sign bit of result (MSB) \\
+8 & Trap & TF & Single-step debugging \\
+9 & Interrupt Enable & IF & Interrupts enabled \\
+10 & Direction & DF & String operation direction \\
+11 & Overflow & OF & Signed arithmetic overflow \\
+12--13 & I/O Privilege Level & IOPL & I/O privilege (0--3) \\
+14 & Nested Task & NT & Nested task flag \\
+15 & Reserved & -- & Must be 0 \\
+16 & Resume & RF & Resume flag \\
+17 & Virtual 8086 & VM & Virtual 8086 mode \\
+18 & Alignment Check & AC & Alignment check enabled \\
+19 & Virtual Interrupt & VIF & Virtual interrupt flag \\
+20 & Virtual Int Pending & VIP & Virtual interrupt pending \\
+21 & ID & ID & CPUID support \\
+22--31 & Reserved & -- & Must be 0 \\ \bottomrule
+\end{longtable}
+
+\subsection{Flag Modification}
+
+Instructions affect flags as follows:
+
+\begin{itemize}
+    \item \textbf{Arithmetic:} ADD, SUB, MUL, DIV modify CF, ZF, SF, OF, PF, AF
+    \item \textbf{Logic:} AND, OR, XOR clear CF and OF, modify ZF, SF, PF
+    \item \textbf{Shift/Rotate:} Modify CF and OF
+    \item \textbf{Compare:} CMP, TEST modify all arithmetic flags
+    \item \textbf{Branches:} Read flags but do not modify
+\end{itemize}
+
+\section{Exception \& Interrupt Handling}
+
+\subsection{Exception Vector Table}
+
+The exception vector table begins at address 0xCAFE and contains handlers for system events:
+
+\begin{longtable}{@{}llll@{}}
+\toprule
+\textbf{Vector} & \textbf{Mnemonic} & \textbf{Type} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Vector} & \textbf{Mnemonic} & \textbf{Type} & \textbf{Description} \\ \midrule
+\endhead
+0x00 & RESET & System & Power-on/reset \\
+0x01 & DIV\_ZERO & Fault & Division by zero \\
+0x02 & DEBUG & Trap & Debug/single-step \\
+0x03 & NMI & Interrupt & Non-maskable interrupt \\
+0x04 & BREAKPOINT & Trap & Software breakpoint \\
+0x05 & OVERFLOW & Trap & Arithmetic overflow \\
+0x06 & BOUND & Fault & Bounds check failure \\
+0x07 & INVALID\_OP & Fault & Invalid opcode \\
+0x08 & NO\_FPU & Fault & FPU not available \\
+0x09 & DOUBLE\_FAULT & Abort & Double fault \\
+0x0A & INVALID\_TSS & Fault & Invalid task segment \\
+0x0B & SEG\_NOT\_PRESENT & Fault & Segment not present \\
+0x0C & STACK\_FAULT & Fault & Stack segment fault \\
+0x0D & GPF & Fault & General protection fault \\
+0x0E & PAGE\_FAULT & Fault & Page fault \\
+0x0F & RESERVED & -- & Reserved \\
+0x10 & FPU\_ERROR & Fault & Floating-point error \\
+0x11 & ALIGN\_CHECK & Fault & Alignment check \\
+0x12 & MACHINE\_CHECK & Abort & Machine check \\
+0x13 & SIMD\_ERROR & Fault & SIMD floating-point \\
+0x14--0x1F & RESERVED & -- & Reserved for future use \\
+0x20--0xFF & USER\_INT & Interrupt & External/software interrupts \\ \bottomrule
+\end{longtable}
+
+\subsection{Exception Handling Mechanism}
+
+When an exception occurs:
+
+\begin{enumerate}
+    \item Current instruction address saved to CFAR (CISC Frontend Address Register)
+    \item Current FLAGS saved to stack
+    \item Current IP saved to stack
+    \item IF flag cleared (interrupts disabled)
+    \item Control transferred to exception handler via vector table
+    \item Handler executes, performs recovery or termination
+    \item Handler returns via IRET instruction
+\end{enumerate}
+
+\subsection{Privilege Level Transitions}
+
+Exceptions may cause privilege level changes:
+
+\begin{itemize}
+    \item \textbf{User → Kernel:} On system call, page fault, or protection violation
+    \item \textbf{Kernel → Kernel:} On nested exceptions
+    \item \textbf{Kernel → User:} On IRET or SYSRET
+\end{itemize}
+
+Stack switching occurs automatically when privilege level changes, using kernel stack pointer from special register.
+
+\section{Control Registers}
+
+\subsection{System Control Registers}
+
+Control registers (CR0--CR15) manage system-level functionality:
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Register} & \textbf{Name} & \textbf{Purpose} \\ \midrule
+\endfirsthead
+\toprule
+\textbf{Register} & \textbf{Name} & \textbf{Purpose} \\ \midrule
+\endhead
+CR0 & System Control & Protected mode, paging, FPU control \\
+CR1 & Reserved & Reserved for future use \\
+CR2 & Page Fault Linear Address & Faulting address on page fault \\
+CR3 & Page Directory Base & Physical address of page directory \\
+CR4 & Extended Control & Additional CPU features \\
+CR5--CR7 & Reserved & Reserved for future use \\
+CR8 & Task Priority & Interrupt priority level \\
+CR9--CR15 & Implementation-specific & Vendor-specific features \\ \bottomrule
+\end{longtable}
+
+\subsection{CR0 Bit Definitions}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Bit} & \textbf{Name} & \textbf{Description} \\ \midrule
+0 & PE & Protected Mode Enable \\
+1 & MP & Monitor Coprocessor \\
+2 & EM & Emulation (FPU emulation) \\
+3 & TS & Task Switched \\
+4 & ET & Extension Type \\
+5 & NE & Numeric Error \\
+16 & WP & Write Protect \\
+18 & AM & Alignment Mask \\
+29 & NW & Not Write-through \\
+30 & CD & Cache Disable \\
+31 & PG & Paging Enable \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{Memory Management}
+
+\subsection{Paging Mechanism}
+
+The SeaBird ISA supports hierarchical paging in Tetra and Dragonet modes:
+
+\textbf{Tetra Mode (32-bit):}
+\begin{itemize}
+    \item Two-level page tables
+    \item Page size: 4 KB (standard) or 4 MB (large pages)
+    \item Virtual address space: 4 GB
+    \item Page directory: 1024 entries
+    \item Page table: 1024 entries per directory
+\end{itemize}
+
+\textbf{Dragonet Mode (64-bit):}
+\begin{itemize}
+    \item Four-level page tables (PML4)
+    \item Page size: 4 KB, 2 MB (huge), or 1 GB (gigantic)
+    \item Virtual address space: 256 TB (48-bit addresses)
+    \item Canonical address form required
+\end{itemize}
+
+\subsection{Page Table Entry Format}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Bits} & \textbf{Field} & \textbf{Description} \\ \midrule
+0 & P & Present (page is in memory) \\
+1 & R/W & Read/Write (0=read-only, 1=writable) \\
+2 & U/S & User/Supervisor (0=kernel, 1=user) \\
+3 & PWT & Page Write-Through \\
+4 & PCD & Page Cache Disable \\
+5 & A & Accessed (set by CPU) \\
+6 & D & Dirty (written to) \\
+7 & PS & Page Size (0=4KB, 1=large) \\
+8 & G & Global page \\
+9--11 & AVL & Available for OS use \\
+12--51 & PFN & Physical Frame Number \\
+52--62 & AVL & Available for OS use \\
+63 & XD & Execute Disable (NX bit) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Translation Lookaside Buffer (TLB)}
+
+\begin{itemize}
+    \item \textbf{Data TLB:} 64--128 entries for load/store translations
+    \item \textbf{Instruction TLB:} 64--128 entries for instruction fetch
+    \item \textbf{Unified TLB (L2):} 512--1024 entries
+    \item \textbf{Huge page support:} Separate entries for 2MB/1GB pages
+    \item \textbf{PCID support:} Process Context ID for tagged TLB entries
+\end{itemize}
+
+\section{Programming Examples}
+
+\subsection{Example 1: Simple Loop}
+
+\begin{lstlisting}
+; Calculate sum of array elements
+; R1 = array pointer, R2 = count, R3 = sum
+
+        MOVI    R3, #0              ; sum = 0
+loop:
+        LD      R4, [R1]            ; load array[i]
+        ADD     R3, R3, R4          ; sum += array[i]
+        ADDI    R1, #4              ; i++
+        SUBI    R2, #1              ; count--
+        JNZ     loop                ; if (count != 0) goto loop
+        
+        ; Result in R3
+\end{lstlisting}
+
+\subsection{Example 2: Function Call with Stack Frame}
+
+\begin{lstlisting}
+; Function: int add(int a, int b)
+; Arguments: R0 = a, R1 = b
+; Returns: R0 = result
+
+add_function:
+        ENTER   #16                 ; create stack frame (16 bytes)
+        PUSH    R6                  ; save callee-saved register
+        PUSH    R7
+        
+        MOV     R6, R0              ; save parameter a
+        MOV     R7, R1              ; save parameter b
+        ADD     R0, R6, R7          ; result = a + b
+        
+        POP     R7                  ; restore registers
+        POP     R6
+        LEAVE                       ; destroy stack frame
+        RET                         ; return to caller
+
+; Caller:
+main:
+        MOVI    R0, #10             ; first argument
+        MOVI    R1, #20             ; second argument
+        CALL    add_function        ; call function
+        ; result in R0 (= 30)
+\end{lstlisting}
+
+\subsection{Example 3: Vector Operations}
+
+\begin{lstlisting}
+; Vector addition: C = A + B (4 elements each)
+; V0 = vector A, V1 = vector B, V2 = result C
+
+        VLD     V0, [R1]            ; load vector A
+        VLD     V1, [R2]            ; load vector B
+        VADD    V2, V0, V1          ; C = A + B
+        VST     [R3], V2            ; store result
+\end{lstlisting}
+
+\subsection{Example 4: System Call}
+
+\begin{lstlisting}
+; System call: write(fd, buffer, count)
+; Syscall number in R0, args in R1, R2, R3
+
+        MOVI    R0, #1              ; syscall: write
+        MOVI    R1, #1              ; fd = stdout
+        LEA     R2, [message]       ; buffer pointer
+        MOVI    R3, #13             ; count = 13 bytes
+        SYSCALL                     ; invoke kernel
+        ; return value in R0
+
+message:
+        .ascii  "Hello, World!"
+\end{lstlisting}
+
+\section{Implementation Notes}
+
+\subsection{Design Considerations for Implementers}
+
+\subsubsection{Frontend Decoder}
+
+\begin{itemize}
+    \item Complex instructions should decode to µop sequences in 1--2 cycles
+    \item Maintain µop cache for frequently-decoded instruction sequences
+    \item Support macro-op fusion (e.g., CMP + JZ → single µop)
+\end{itemize}
+
+\subsubsection{Execution Backend}
+
+\begin{itemize}
+    \item Minimum 4-wide superscalar for competitive performance
+    \item Out-of-order execution with register renaming
+    \item Unified reservation station or distributed scheduler
+    \item Memory disambiguation for load/store reordering
+\end{itemize}
+
+\subsubsection{Branch Prediction}
+
+\begin{itemize}
+    \item Two-level adaptive predictor recommended
+    \item BTB (Branch Target Buffer) with 4K--8K entries
+    \item Return stack buffer with 16--32 entries
+    \item Indirect branch predictor for virtual calls
+\end{itemize}
+
+\subsection{Compliance Levels}
+
+Implementations may target different compliance levels:
+
+\begin{itemize}
+    \item \textbf{Level 0 (Minimal):} Clownfish mode only, single-issue, in-order
+    \item \textbf{Level 1 (Basic):} Tetra mode, 2-way superscalar, simple branch prediction
+    \item \textbf{Level 2 (Standard):} Dragonet mode, 4-way superscalar, out-of-order
+    \item \textbf{Level 3 (High-Performance):} Full vector support, 6+ way, aggressive µop fusion
+\end{itemize}
+
+\section{Revision History}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Version} & \textbf{Date} & \textbf{Author} & \textbf{Changes} \\ \midrule
+1.0 & 2025-12-07 & SeaBird Team & Initial release \\ 1.1 & 2026-01-28 & Miyamii & Updated Directives\\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{Acknowledgments}
+
+The SeaBird ISA draws inspiration from several influential architectures:
+
+\begin{itemize}
+    \item x86-64 (Intel/AMD) - Binary encoding format, ModR/M/SIB structure
+    \item ARM - Register naming conventions, clean instruction orthogonality
+    \item RISC-V - Modern ISA design principles, extensibility
+    \item IBM POWER - Hybrid CISC/RISC execution model
+\end{itemize}
+
+\section{Glossary}
+
+\begin{description}
+    \item[CISC] Complex Instruction Set Computer - Architecture with variable-length, multi-operation instructions
+    \item[RISC] Reduced Instruction Set Computer - Architecture with fixed-length, single-operation instructions
+    \item[µop (Micro-op)] Micro-operation - Internal RISC-like operation into which CISC instructions decompose
+    \item[GPR] General-Purpose Register - Registers available for general computation (R0--R31)
+    \item[MMU] Memory Management Unit - Hardware managing virtual-to-physical address translation
+    \item[TLB] Translation Lookaside Buffer - Cache for page table entries
+    \item[ROB] Reorder Buffer - Structure for out-of-order execution commit
+    \item[BTB] Branch Target Buffer - Cache for branch target addresses
+    \item[SIMD] Single Instruction Multiple Data - Parallel processing of vector data
+    \item[ModR/M] Mode-Register-Memory byte - Encoding byte specifying operands
+    \item[SIB] Scale-Index-Base byte - Encoding byte for complex addressing modes
+\end{description}
+
+\end{document}

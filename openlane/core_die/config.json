@@ -15,6 +15,7 @@
     "dir::../../rtl/core_die/lsu/load_store_unit.sv",
     "dir::../../rtl/core_die/core_die_top.sv"
   ],
+  "VERILOG_INCLUDE_DIRS": ["dir::../../rtl/pkg"],
   "CLOCK_PORT": "clk",
   "CLOCK_PERIOD": 3.33,
   "DESIGN_IS_CORE": true,

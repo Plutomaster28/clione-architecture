@@ -100,10 +100,28 @@ module register_alias_table
       alloc_int_ok_all &= alloc_int_ok[i];
   end
 
+  logic alloc_ok_for_bundle;
+  always_comb begin
+    alloc_ok_for_bundle = 1'b1;
+    for (int i = 0; i < DECODE_WIDTH; i++) begin
+      if (dec_bundle[i].valid && dec_bundle[i].arch_rd != '0) begin
+        if (is_fp_op(dec_bundle[i].opcode) || is_vec_op(dec_bundle[i].opcode))
+          alloc_ok_for_bundle &= alloc_fp_ok[i];
+        else
+          alloc_ok_for_bundle &= alloc_int_ok[i];
+      end
+    end
+  end
+
   // Stall when free list is exhausted
-  assign dec_ready = ren_ready &&
-                     (alloc_int_ok_all | ~(|{dec_bundle[0].valid, dec_bundle[1].valid,
-                                             dec_bundle[2].valid, dec_bundle[3].valid}));
+  logic any_valid_in_bundle;
+  always_comb begin
+    any_valid_in_bundle = 1'b0;
+    for (int i = 0; i < DECODE_WIDTH; i++)
+      any_valid_in_bundle |= dec_bundle[i].valid;
+  end
+
+  assign dec_ready = ren_ready && (alloc_ok_for_bundle | ~any_valid_in_bundle);
 
   // --------------------------------------------------------------------------
   // Source register lookup: read current RAT for rs1/rs2/rs3 per instruction
@@ -137,9 +155,9 @@ module register_alias_table
         for (int j = 0; j < i; j++) begin
           if (dec_bundle[j].valid && dec_bundle[j].arch_rd != '0) begin
             if (dec_bundle[j].arch_rd == dec_bundle[i].arch_rs1)
-              ren_out[i].phys_rs1 = alloc_int[j];
+              ren_out[i].phys_rs1 = is_fp ? alloc_fp[j] : alloc_int[j];
             if (dec_bundle[j].arch_rd == dec_bundle[i].arch_rs2)
-              ren_out[i].phys_rs2 = alloc_int[j];
+              ren_out[i].phys_rs2 = is_fp ? alloc_fp[j] : alloc_int[j];
           end
         end
 

@@ -123,6 +123,7 @@ module fpu_pipe
   logic [127:0]  s3_addend_b;
   logic          s3_sign_a, s3_sign_b;
   logic [12:0]   s3_exp;
+  logic signed [13:0] s3_exp_diff;
   logic          s3_valid;
   logic [31:0]   s3_instr;
   logic [ROB_PTR_WIDTH-1:0] s3_rob; logic [PREG_WIDTH-1:0] s3_prd;
@@ -139,7 +140,7 @@ module fpu_pipe
       s3_tid    <= s2_tid;
 
       // For FP ADD/SUB: align s2_a and s2_b by exponent difference
-      automatic logic signed [13:0] exp_diff = $signed(13'(s2_a.exp)) - $signed(13'(s2_b.exp));
+      s3_exp_diff = $signed(13'(s2_a.exp)) - $signed(13'(s2_b.exp));
 
       if (s2_instr[6:0] == OP_FMADD || s2_instr[6:0] == OP_FMSUB) begin
         // FMA: product in s2_mant_prod, add c
@@ -150,15 +151,15 @@ module fpu_pipe
         s3_sign_b   <= s2_c.sign;
       end else begin
         // FADD/FSUB: align smaller to larger exponent
-        if (exp_diff >= 0) begin
+        if (s3_exp_diff >= 0) begin
           s3_addend_a <= {1'b1, s2_a.mant, 74'b0};
-          s3_addend_b <= {1'b1, s2_b.mant, 74'b0} >> exp_diff;
+          s3_addend_b <= {1'b1, s2_b.mant, 74'b0} >> s3_exp_diff;
           s3_exp      <= 13'(s2_a.exp);
           s3_sign_a   <= s2_a.sign;
           s3_sign_b   <= s2_b.sign;
         end else begin
           s3_addend_a <= {1'b1, s2_b.mant, 74'b0};
-          s3_addend_b <= {1'b1, s2_a.mant, 74'b0} >> (-exp_diff);
+          s3_addend_b <= {1'b1, s2_a.mant, 74'b0} >> (-s3_exp_diff);
           s3_exp      <= 13'(s2_b.exp);
           s3_sign_a   <= s2_b.sign;
           s3_sign_b   <= s2_a.sign;
@@ -208,15 +209,18 @@ module fpu_pipe
   // Stage 5: Normalization
   // --------------------------------------------------------------------------
   logic [63:0]  s5_normalized;
+  logic [7:0]   s5_lz;
+  logic [127:0] s5_shifted;
+  logic [10:0]  s5_norm_exp;
   logic         s5_valid;
   logic [ROB_PTR_WIDTH-1:0] s5_rob; logic [PREG_WIDTH-1:0] s5_prd;
   logic [TID_WIDTH-1:0]     s5_tid;
 
   // Leading zero count for normalization shift
-  function automatic logic [6:0] clz128(input logic [127:0] v);
+  function automatic logic [7:0] clz128(input logic [127:0] v);
     for (int i = 127; i >= 0; i--)
-      if (v[i]) return 7'(127 - i);
-    return 7'd128;
+      if (v[i]) return 8'(127 - i);
+    return 8'd128;
   endfunction
 
   always_ff @(posedge clk or negedge rst_n) begin
@@ -229,11 +233,11 @@ module fpu_pipe
       s5_tid   <= s4_tid;
 
       // Normalize: shift mantissa so MSB is at bit 127-12=115 (after implicit 1)
-      automatic logic [6:0] lz = clz128(s4_sum);
-      automatic logic [127:0] shifted = s4_sum << lz;
-      automatic logic [10:0]  norm_exp = 11'(s4_exp - 13'(lz));
+      s5_lz       = clz128(s4_sum);
+      s5_shifted  = s4_sum << s5_lz;
+      s5_norm_exp = 11'(s4_exp - 13'({5'b0, s5_lz}));
       // Pack result
-      s5_normalized <= {s4_sign, norm_exp, shifted[126:75]}; // 1 + 11 + 52 = 64
+      s5_normalized <= {s4_sign, s5_norm_exp, s5_shifted[126:75]}; // 1 + 11 + 52 = 64
     end
   end
 

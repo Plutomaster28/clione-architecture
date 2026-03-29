@@ -13,16 +13,20 @@ module tb_core_die_top;
   // --------------------------------------------------------------------------
   logic                       clk;
   logic                       rst_n;
+  logic [SMT_WAYS-1:0]        thread_active;
+  logic                       ext_interrupt;
+  logic [63:0]                int_vector;
+  logic [TID_WIDTH-1:0]       int_tid;
 
   // NoC TX from core die to execution chiplets
-  noc_pkt_t                   noc_tx_pkt;
-  logic                       noc_tx_valid;
-  logic                       noc_tx_ready;
+  noc_pkt_t                   noc_tx_pkt   [ISSUE_WIDTH-1:0];
+  logic                       noc_tx_valid [ISSUE_WIDTH-1:0];
+  logic                       noc_tx_ready [ISSUE_WIDTH-1:0];
 
   // NoC RX results back from execution chiplets
-  noc_pkt_t                   noc_rx_pkt;
-  logic                       noc_rx_valid;
-  logic                       noc_rx_ready;
+  noc_pkt_t                   noc_rx_pkt   [ISSUE_WIDTH-1:0];
+  logic                       noc_rx_valid [ISSUE_WIDTH-1:0];
+  logic                       noc_rx_ready [ISSUE_WIDTH-1:0];
 
   // Cache NoC (to L2)
   noc_pkt_t                   cache_tx_pkt;
@@ -38,6 +42,7 @@ module tb_core_die_top;
   core_die_top u_dut (
     .clk             ( clk             ),
     .rst_n           ( rst_n           ),
+    .thread_active   ( thread_active   ),
     .noc_tx_pkt      ( noc_tx_pkt      ),
     .noc_tx_valid    ( noc_tx_valid    ),
     .noc_tx_ready    ( noc_tx_ready    ),
@@ -49,7 +54,10 @@ module tb_core_die_top;
     .cache_tx_ready  ( cache_tx_ready  ),
     .cache_rx_pkt    ( cache_rx_pkt    ),
     .cache_rx_valid  ( cache_rx_valid  ),
-    .cache_rx_ready  ( cache_rx_ready  )
+    .cache_rx_ready  ( cache_rx_ready  ),
+    .ext_interrupt   ( ext_interrupt   ),
+    .int_vector      ( int_vector      ),
+    .int_tid         ( int_tid         )
   );
 
   // --------------------------------------------------------------------------
@@ -71,7 +79,11 @@ module tb_core_die_top;
   logic [1:0]  pending_cnt;
   int          result_timer [15:0];
 
-  assign noc_tx_ready   = 1'b1;
+  always_comb begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
+      noc_tx_ready[i] = 1'b1;
+    end
+  end
   assign cache_tx_ready = 1'b1;
   assign cache_rx_valid = 1'b0;
   assign cache_rx_pkt   = '0;
@@ -79,27 +91,30 @@ module tb_core_die_top;
   // Result injection model
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      noc_rx_valid      <= 1'b0;
-      noc_rx_pkt        <= '0;
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
+        noc_rx_valid[i] <= 1'b0;
+        noc_rx_pkt[i]   <= '0;
+      end
       pending_head      <= '0;
       pending_tail      <= '0;
     end else begin
-      noc_rx_valid <= 1'b0;
+      for (int i = 0; i < ISSUE_WIDTH; i++)
+        noc_rx_valid[i] <= 1'b0;
       // Capture dispatched packet
-      if (noc_tx_valid && noc_tx_ready) begin
-        pending_rob[pending_tail] <= noc_tx_pkt.rob_idx;
+      if (noc_tx_valid[0] && noc_tx_ready[0]) begin
+        pending_rob[pending_tail] <= noc_tx_pkt[0].rob_idx;
         pending_tail <= pending_tail + 4'd1;
       end
       // Return result after 4 cycles (simplified: immediate return)
       if (pending_head != pending_tail) begin
-        noc_rx_pkt.pkt_type <= NOC_RESULT;
-        noc_rx_pkt.rob_idx  <= pending_rob[pending_head];
-        noc_rx_pkt.data     <= {8{64'd42}}; // Dummy result
-        noc_rx_pkt.tid      <= '0;
-        noc_rx_pkt.src_node <= 5'h01;
-        noc_rx_pkt.dst_node <= 5'h00;
-        noc_rx_pkt.valid    <= 1'b1;
-        noc_rx_valid        <= 1'b1;
+        noc_rx_pkt[0].pkt_type <= NOC_RESULT;
+        noc_rx_pkt[0].rob_idx  <= pending_rob[pending_head];
+        noc_rx_pkt[0].data     <= {8{64'd42}}; // Dummy result
+        noc_rx_pkt[0].tid      <= '0;
+        noc_rx_pkt[0].src_node <= 5'h01;
+        noc_rx_pkt[0].dst_node <= 5'h00;
+        noc_rx_pkt[0].valid    <= 1'b1;
+        noc_rx_valid[0]        <= 1'b1;
         pending_head        <= pending_head + 4'd1;
       end
     end
@@ -118,6 +133,10 @@ module tb_core_die_top;
     $dumpvars(0, tb_core_die_top);
 
     // Apply reset
+    thread_active = '1;
+    ext_interrupt = 1'b0;
+    int_vector    = 64'h0;
+    int_tid       = '0;
     rst_n = 0;
     repeat(10) @(posedge clk);
     rst_n = 1;
@@ -150,9 +169,9 @@ module tb_core_die_top;
   end
 
   always @(posedge clk) begin
-    if (rst_n && noc_tx_valid)
+    if (rst_n && noc_tx_valid[0])
       $display("[%0t] DISPATCH: rob_idx=%0d -> node %h",
-        $time, noc_tx_pkt.rob_idx, noc_tx_pkt.dst_node);
+        $time, noc_tx_pkt[0].rob_idx, noc_tx_pkt[0].dst_node);
   end
 
 endmodule : tb_core_die_top

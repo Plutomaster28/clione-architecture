@@ -51,6 +51,7 @@ module ifu
   // Internal State
   // --------------------------------------------------------------------------
   logic [63:0]  pc_reg    [SMT_WAYS-1:0];
+  logic [15:0]  bundle_seq[SMT_WAYS-1:0];
   logic [TID_WIDTH-1:0] active_tid;   // Which thread is fetching this cycle
   logic [TID_WIDTH-1:0] tid_rr;       // Round-robin thread selector
 
@@ -94,6 +95,8 @@ module ifu
     if (!rst_n) begin
       for (int t = 0; t < SMT_WAYS; t++)
         pc_reg[t] <= 64'h0000_0000_0000_1000;  // Reset vector
+      for (int t = 0; t < SMT_WAYS; t++)
+        bundle_seq[t] <= '0;
     end else begin
       // Handle backend redirects (highest priority)
       if (redirect_valid) begin
@@ -102,6 +105,7 @@ module ifu
       // Update PC when fetch completes for that thread
       if (icache_resp_valid && !redirect_valid) begin
         pc_reg[active_tid] <= pc_reg[active_tid] + (FETCH_WIDTH * 4);
+        bundle_seq[active_tid] <= bundle_seq[active_tid] + 16'd1;
       end
     end
   end
@@ -171,6 +175,10 @@ module ifu
     for (int i = 0; i < FETCH_WIDTH; i++) begin
       fetch_bundle[i]           = '0;
       fetch_bundle[i].raw_instr = fetch_raw[i];
+      fetch_bundle[i].bundle_id = bundle_seq[active_tid];
+      fetch_bundle[i].slot_idx  = 3'(i);
+      fetch_bundle[i].bundle_start = (i == 0);
+      fetch_bundle[i].vliw_mode = 1'b1;
       fetch_bundle[i].pc        = pc_reg[active_tid] + (i * 4);
       fetch_bundle[i].tid       = active_tid;
       fetch_bundle[i].valid     = fetch_valid_mask[i];

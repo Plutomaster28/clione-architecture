@@ -13,10 +13,10 @@ module tb_alu_chiplet;
   logic        rx_valid, rx_ready;
   noc_pkt_t    tx_pkt;
   logic        tx_valid, tx_ready;
-  noc_pkt_t    bypass_result;
+  exec_result_t bypass_result;
   logic        bypass_valid;
-  noc_pkt_t    peer_bypass [7:0];
-  logic [7:0]  peer_bypass_valid;
+  exec_result_t peer_bypass [7:0];
+  logic         peer_bypass_valid [7:0];
 
   alu_chiplet_top u_dut (
     .clk              ( clk              ),
@@ -30,15 +30,19 @@ module tb_alu_chiplet;
     .bypass_result    ( bypass_result    ),
     .bypass_valid     ( bypass_valid     ),
     .peer_bypass      ( peer_bypass      ),
-    .peer_valid        ( peer_bypass_valid)
+    .peer_valid       ( peer_bypass_valid )
   );
 
   initial clk = 0;
   always #1.25 clk = ~clk; // 400MHz
 
   assign tx_ready          = 1'b1;
-  assign peer_bypass       = '{default: '0};
-  assign peer_bypass_valid = '0;
+  always_comb begin
+    for (int i = 0; i < 8; i++) begin
+      peer_bypass[i] = '0;
+      peer_bypass_valid[i] = 1'b0;
+    end
+  end
 
   // Build a dispatch packet (NOC_DISPATCH)
   function automatic noc_pkt_t make_alu_pkt(
@@ -56,8 +60,13 @@ module tb_alu_chiplet;
     p.rob_idx          = rob_idx;
     p.data[511:448]    = src1;
     p.data[447:384]    = src2;
-    p.data[PREG_WIDTH-1:0] = phys_rd;
-    p.data[63:0]       = {32'b0, instr};
+    p.data[31:0]       = instr;
+    p.data[32]         = 1'b0; // has_imm
+    p.data[33]         = 1'b0; // is_branch
+    p.data[35:34]      = MODE_DRAGONET;
+    p.data[38:36]      = OPW_64;
+    p.data[PREG_WIDTH+39:40] = phys_rd;
+    p.data[127:64]     = 64'h0;
     return p;
   endfunction
 

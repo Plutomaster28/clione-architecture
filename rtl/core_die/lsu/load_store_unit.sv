@@ -120,10 +120,10 @@ module load_store_unit
       // Flush
       if (flush_valid) begin
         for (int i = 0; i < LQ_DEPTH; i++)
-          if (lq[i].valid && lq[i].uop.tid == flush_tid) lq[i].valid <= 1'b0;
+          if (lq[i].valid && lq[i].uop.tid == flush_tid) lq[i].valid = 1'b0;
         for (int i = 0; i < SQ_DEPTH; i++)
           if (sq[i].valid && !sq[i].committed && sq[i].uop.tid == flush_tid)
-            sq[i].valid <= 1'b0;
+            sq[i].valid = 1'b0;
       end
 
       // New instruction allocation
@@ -133,13 +133,13 @@ module load_store_unit
             lq[lq_tail].uop           <= issue_uop[k];
             lq[lq_tail].addr_computed <= 1'b0;
             lq[lq_tail].completed     <= 1'b0;
-            lq[lq_tail].valid         <= 1'b1;
+            lq[lq_tail].valid         = 1'b1;
             lq_tail <= lq_tail + 1'b1;
           end else if (issue_uop[k].is_store) begin
             sq[sq_tail].uop           <= issue_uop[k];
             sq[sq_tail].addr_computed <= 1'b0;
             sq[sq_tail].committed     <= 1'b0;
-            sq[sq_tail].valid         <= 1'b1;
+            sq[sq_tail].valid         = 1'b1;
             sq_tail <= sq_tail + 1'b1;
           end
         end
@@ -150,15 +150,15 @@ module load_store_unit
         // Find the pending entry and fill in paddr
         for (int i = 0; i < LQ_DEPTH; i++) begin
           if (lq[i].valid && !lq[i].addr_computed) begin
-            lq[i].paddr         <= dtlb_paddr;
-            lq[i].addr_computed <= 1'b1;
+            lq[i].paddr         = dtlb_paddr;
+            lq[i].addr_computed = 1'b1;
             break;
           end
         end
         for (int i = 0; i < SQ_DEPTH; i++) begin
           if (sq[i].valid && !sq[i].addr_computed) begin
-            sq[i].paddr         <= dtlb_paddr;
-            sq[i].addr_computed <= 1'b1;
+            sq[i].paddr         = dtlb_paddr;
+            sq[i].addr_computed = 1'b1;
             break;
           end
         end
@@ -185,7 +185,7 @@ module load_store_unit
       if (rob_retire_store) begin
         for (int i = 0; i < SQ_DEPTH; i++) begin
           if (sq[i].valid && sq[i].uop.rob_idx == rob_retire_rob_idx)
-            sq[i].committed <= 1'b1;
+            sq[i].committed = 1'b1;
         end
       end
 
@@ -193,7 +193,7 @@ module load_store_unit
       lsu_valid[1] <= 1'b0;
       for (int i = 0; i < SQ_DEPTH; i++) begin
         if (sq[i].valid && sq[i].committed && sq[i].addr_computed && st_ready) begin
-          sq[i].valid <= 1'b0;
+          sq[i].valid = 1'b0;
           break;
         end
       end

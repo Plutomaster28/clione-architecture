@@ -151,7 +151,7 @@ module branch_predictor
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       for (int i = 0; i < TAGE_T0_ENTRIES; i++)
-        bimodal[i] <= 2'b10; // Weakly taken
+        bimodal[i] = 2'b10; // Weakly taken
     end else if (upd_valid) begin
       automatic logic [11:0] idx;
       idx = upd_pc[13:2];
@@ -169,7 +169,7 @@ module branch_predictor
     if (!rst_n) begin
       for (int w = 0; w < BTB_WAYS; w++)
         for (int i = 0; i < BTB_ENTRIES_PER_WAY; i++)
-          btb[w][i] <= '0;
+          btb[w][i] = '0;
     end else if (upd_valid && upd_taken) begin
       automatic logic [$clog2(BTB_ENTRIES_PER_WAY)-1:0] bidx;
       bidx = upd_pc[$clog2(BTB_ENTRIES_PER_WAY)+1:2];

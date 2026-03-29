@@ -27,6 +27,19 @@ package clione_pkg;
   parameter int unsigned TID_WIDTH       = $clog2(SMT_WAYS);
 
   // --------------------------------------------------------------------------
+  // VLIW Frontend Parameters
+  // --------------------------------------------------------------------------
+  parameter int unsigned VLIW_SLOTS       = 8;
+  parameter int unsigned VLIW_SLOT_BITS   = 32;
+  parameter int unsigned VLIW_BUNDLE_BITS = VLIW_SLOTS * VLIW_SLOT_BITS; // 256
+
+  // Logical ISA register model used by frontend/compiler contract.
+  // R0..R7 fixed, R8..R31 rotating.
+  parameter int unsigned LOGICAL_INT_REGS       = 32;
+  parameter int unsigned FIXED_LOGICAL_REGS     = 8;
+  parameter int unsigned ROTATING_LOGICAL_REGS  = LOGICAL_INT_REGS - FIXED_LOGICAL_REGS;
+
+  // --------------------------------------------------------------------------
   // Register File
   // --------------------------------------------------------------------------
   parameter int unsigned ARCH_INT_REGS   = 64;   // Architectural integer registers
@@ -100,6 +113,25 @@ package clione_pkg;
   } iclass_e;
 
   // --------------------------------------------------------------------------
+  // SeaBird Compatibility Modes
+  // Native datapath is 64-bit; lower-width modes are represented by masks.
+  // --------------------------------------------------------------------------
+  typedef enum logic [1:0] {
+    MODE_CLOWNFISH = 2'b00, // 16-bit
+    MODE_TETRA     = 2'b01, // 32-bit
+    MODE_DRAGONET  = 2'b10, // 64-bit
+    MODE_DROPLET   = 2'b11  // 128-bit (emulated via pair/combine on 64-bit backend)
+  } seabird_mode_e;
+
+  typedef enum logic [2:0] {
+    OPW_8  = 3'b000,
+    OPW_16 = 3'b001,
+    OPW_32 = 3'b010,
+    OPW_64 = 3'b011,
+    OPW_128= 3'b100
+  } op_width_e;
+
+  // --------------------------------------------------------------------------
   // Clione64 Opcode Encoding
   // --------------------------------------------------------------------------
   typedef enum logic [6:0] {
@@ -129,6 +161,10 @@ package clione_pkg;
   // --------------------------------------------------------------------------
   typedef struct packed {
     logic [ILEN-1:0]         raw_instr;    // Original encoded instruction
+    logic [15:0]             bundle_id;    // 8-slot bundle sequence ID
+    logic [2:0]              slot_idx;     // 0..7 slot in bundle
+    logic                    bundle_start; // slot 0 marker
+    logic                    vliw_mode;    // fixed-size bundle decode path
     opcode_e                  opcode;
     iclass_e                  iclass;
     logic [AREG_WIDTH-1:0]   arch_rs1;
@@ -141,6 +177,8 @@ package clione_pkg;
     logic [PREG_WIDTH-1:0]   phys_rd;
     logic [PREG_WIDTH-1:0]   phys_rd_old; // For ROB rollback
     logic [63:0]              imm;         // Sign-extended immediate
+    seabird_mode_e            mode;        // Architectural mode for this uop
+    op_width_e                op_width;    // Intended operation width
     logic                     has_imm;
     logic                     rs1_ready;
     logic                     rs2_ready;
@@ -248,6 +286,76 @@ package clione_pkg;
     return {{44{imm20[19]}}, imm20};
   endfunction
 
+  function automatic logic [63:0] mode_mask(input seabird_mode_e mode);
+    unique case (mode)
+      MODE_CLOWNFISH: return 64'h0000_0000_0000_FFFF;
+      MODE_TETRA:     return 64'h0000_0000_FFFF_FFFF;
+      default:        return 64'hFFFF_FFFF_FFFF_FFFF;
+    endcase
+  endfunction
+
+  function automatic logic [63:0] apply_mode_mask(
+    input logic [63:0] v,
+    input seabird_mode_e mode
+  );
+    return v & mode_mask(mode);
+  endfunction
+
+  function automatic logic [63:0] sign_extend_mode(
+    input logic [63:0] v,
+    input seabird_mode_e mode
+  );
+    unique case (mode)
+      MODE_CLOWNFISH: return {{48{v[15]}}, v[15:0]};
+      MODE_TETRA:     return {{32{v[31]}}, v[31:0]};
+      default:        return v;
+    endcase
+  endfunction
+
+  function automatic logic [63:0] width_mask(input op_width_e w);
+    unique case (w)
+      OPW_8:   return 64'h0000_0000_0000_00FF;
+      OPW_16:  return 64'h0000_0000_0000_FFFF;
+      OPW_32:  return 64'h0000_0000_FFFF_FFFF;
+      default: return 64'hFFFF_FFFF_FFFF_FFFF;
+    endcase
+  endfunction
+
+  function automatic logic [63:0] apply_width_mask(
+    input logic [63:0] v,
+    input op_width_e w
+  );
+    return v & width_mask(w);
+  endfunction
+
+  function automatic logic [63:0] sign_extend_width(
+    input logic [63:0] v,
+    input op_width_e w
+  );
+    unique case (w)
+      OPW_8:   return {{56{v[7]}}, v[7:0]};
+      OPW_16:  return {{48{v[15]}}, v[15:0]};
+      OPW_32:  return {{32{v[31]}}, v[31:0]};
+      default: return v;
+    endcase
+  endfunction
+
+  // 128-bit helper (for future Droplet emulation on 64-bit backend)
+  function automatic logic [127:0] combine_u128(
+    input logic [63:0] lo,
+    input logic [63:0] hi
+  );
+    return {hi, lo};
+  endfunction
+
+  function automatic logic [63:0] merge_masked64(
+    input logic [63:0] old_v,
+    input logic [63:0] new_v,
+    input logic [63:0] mask
+  );
+    return (old_v & ~mask) | (new_v & mask);
+  endfunction
+
   function automatic logic is_fp_op(input opcode_e op);
     return (op == OP_FP) || (op == OP_FMADD) || (op == OP_FMSUB) ||
            (op == OP_FNMSUB) || (op == OP_FNMADD);
@@ -259,6 +367,100 @@ package clione_pkg;
 
   function automatic logic is_mem_op(input opcode_e op);
     return (op == OP_LOAD) || (op == OP_STORE);
+  endfunction
+
+  // --------------------------------------------------------------------------
+  // SeaBird compatibility encoding helpers
+  // Encapsulation format inside 32-bit transport word:
+  //   [31:24] SeaBird opcode (0x00..0xAF)
+  //   [23:22] SeaBird mode
+  //   [21:19] SeaBird operation width override
+  //   [18]    Immediate-present hint
+  //   [17:0]  Operand/immediate payload (frontend-defined)
+  // Escape selector: raw[6:0] == OP_CRYPTO and raw[14:12] == 3'b111
+  // --------------------------------------------------------------------------
+  function automatic logic is_seabird_ext(input logic [31:0] raw);
+    return (raw[6:0] == OP_CRYPTO) && (raw[14:12] == 3'b111);
+  endfunction
+
+  function automatic logic [7:0] seabird_opcode(input logic [31:0] raw);
+    return raw[31:24];
+  endfunction
+
+  function automatic seabird_mode_e seabird_mode(input logic [31:0] raw);
+    return seabird_mode_e'(raw[23:22]);
+  endfunction
+
+  function automatic op_width_e seabird_width(input logic [31:0] raw);
+    return op_width_e'(raw[21:19]);
+  endfunction
+
+  function automatic logic seabird_has_imm(input logic [31:0] raw);
+    return raw[18];
+  endfunction
+
+  function automatic iclass_e seabird_iclass(input logic [7:0] sb_op);
+    if (sb_op <= 8'h1F) begin
+      if ((sb_op >= 8'h10) && (sb_op <= 8'h1A)) return ICLASS_MEM;
+      return ICLASS_INT;
+    end
+    if (sb_op <= 8'h3F) begin
+      if ((sb_op >= 8'h24) && (sb_op <= 8'h2F)) return ICLASS_MUL;
+      return ICLASS_INT;
+    end
+    if (sb_op <= 8'h51) return ICLASS_INT;
+    if (sb_op <= 8'h5B) return ICLASS_INT;
+    if (sb_op <= 8'h71) begin
+      if ((sb_op == 8'h70) || (sb_op == 8'h71)) return ICLASS_SYS;
+      return ICLASS_BRANCH;
+    end
+    if (sb_op <= 8'h7D) return ICLASS_MEM;
+    if (sb_op <= 8'h96) return ICLASS_SYS;
+    if (sb_op <= 8'hA5) return ICLASS_VEC;
+    return ICLASS_FP;
+  endfunction
+
+  function automatic logic seabird_is_load(input logic [7:0] sb_op);
+    return (sb_op == 8'h10) || (sb_op == 8'h13) || (sb_op == 8'h14) ||
+           (sb_op == 8'h15) || (sb_op == 8'h16) || (sb_op == 8'h1B) ||
+           (sb_op == 8'h76) || (sb_op == 8'h78);
+  endfunction
+
+  function automatic logic seabird_is_store(input logic [7:0] sb_op);
+    return (sb_op == 8'h11) || (sb_op == 8'h17) || (sb_op == 8'h18) ||
+           (sb_op == 8'h19) || (sb_op == 8'h1A) || (sb_op == 8'h1C) ||
+           (sb_op == 8'h77) || (sb_op == 8'h79);
+  endfunction
+
+  function automatic logic seabird_is_branch(input logic [7:0] sb_op);
+    return (sb_op >= 8'h5C) && (sb_op <= 8'h6F);
+  endfunction
+
+  function automatic op_width_e seabird_mem_width(input logic [7:0] sb_op);
+    unique case (sb_op)
+      8'h13, 8'h17: return OPW_8;
+      8'h14, 8'h18: return OPW_16;
+      8'h15, 8'h19: return OPW_32;
+      default:      return OPW_64;
+    endcase
+  endfunction
+
+  // Logical-to-architectural mapping with rotating register window.
+  // If logical register is fixed (R0..R7), mapping is identity.
+  // Otherwise map R8..R31 by `rot_base` modulo 24.
+  function automatic logic [AREG_WIDTH-1:0] map_rotating_logical_reg(
+    input logic [4:0] logical_reg,
+    input logic [4:0] rot_base
+  );
+    automatic logic [AREG_WIDTH-1:0] out_reg;
+    if (logical_reg < FIXED_LOGICAL_REGS[4:0]) begin
+      out_reg = AREG_WIDTH'(logical_reg);
+    end else begin
+      out_reg = AREG_WIDTH'(FIXED_LOGICAL_REGS +
+                            ((logical_reg - FIXED_LOGICAL_REGS[4:0] +
+                              rot_base) % ROTATING_LOGICAL_REGS));
+    end
+    return out_reg;
   endfunction
 
 endpackage : clione_pkg

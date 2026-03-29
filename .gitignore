@@ -1,0 +1,13 @@
+# Synthesis/place-route generated outputs
+openlane/*/runs/
+openlane/*/generated/
+results/
+
+# Simulation/build artifacts
+sim/build/
+sim/waves/
+*.vcd
+
+# OS metadata artifacts
+*.Zone.Identifier
+*:Zone.Identifier

@@ -131,9 +131,9 @@ module l2_cache_chiplet
       req_s1 <= '0; req_s2 <= '0;
       for (int w = 0; w < WAYS; w++)
         for (int s = 0; s < NUM_SETS; s++) begin
-          valid_array[w][s] <= 1'b0;
-          dirty_array[w][s] <= 1'b0;
-          mesi_array[w][s]  <= MESI_I;
+          valid_array[w][s] = 1'b0;
+          dirty_array[w][s] = 1'b0;
+          mesi_array[w][s]  = MESI_I;
         end
       for (int m = 0; m < MSHR_DEPTH; m++) mshr[m] <= '0;
       tx_to_l1_valid <= 1'b0;
@@ -191,12 +191,12 @@ module l2_cache_chiplet
               // Allocate MSHR
               for (int m = 0; m < MSHR_DEPTH; m++) begin
                 if (!mshr[m].allocated) begin
-                  mshr[m].paddr    <= req_s2.paddr;
-                  mshr[m].node_src <= req_s2.src_node;
-                  mshr[m].rob_idx  <= req_s2.rob_idx;
-                  mshr[m].tid      <= req_s2.tid;
-                  mshr[m].req_type <= NOC_LOAD_REQ;
-                  mshr[m].allocated <= 1'b1;
+                  mshr[m].paddr     = req_s2.paddr;
+                  mshr[m].node_src  = req_s2.src_node;
+                  mshr[m].rob_idx   = req_s2.rob_idx;
+                  mshr[m].tid       = req_s2.tid;
+                  mshr[m].req_type  = NOC_LOAD_REQ;
+                  mshr[m].allocated = 1'b1;
                   break;
                 end
               end

@@ -42,6 +42,8 @@ module alu_chiplet_top
     logic [XLEN-1:0]         src2;
     logic [XLEN-1:0]         imm;
     logic                     has_imm;
+    seabird_mode_e            mode;
+    op_width_e                op_width;
     logic [ROB_PTR_WIDTH-1:0] rob_idx;
     logic [PREG_WIDTH-1:0]    phys_rd;
     logic [TID_WIDTH-1:0]     tid;
@@ -96,6 +98,8 @@ module alu_chiplet_top
         .src2           (alu_in.src2),
         .imm            (alu_in.imm),
         .has_imm        (alu_in.has_imm),
+        .mode_i         (alu_in.mode),
+        .op_width_i     (alu_in.op_width),
         .rob_idx        (alu_in.rob_idx),
         .phys_rd        (alu_in.phys_rd),
         .tid            (alu_in.tid),
@@ -134,6 +138,8 @@ module alu_chiplet_top
         disp_q[dq_tail].src2      <= rx_pkt.data[447:384];
         disp_q[dq_tail].imm       <= rx_pkt.data[383:320];
         disp_q[dq_tail].has_imm   <= rx_pkt.data[32];
+        disp_q[dq_tail].mode      <= seabird_mode_e'(rx_pkt.data[35:34]);
+        disp_q[dq_tail].op_width  <= op_width_e'(rx_pkt.data[38:36]);
         disp_q[dq_tail].rob_idx   <= rx_pkt.rob_idx;
         disp_q[dq_tail].phys_rd   <= rx_pkt.data[PREG_WIDTH+39:40];
         disp_q[dq_tail].tid       <= rx_pkt.tid;

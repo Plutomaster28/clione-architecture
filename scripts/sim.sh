@@ -75,6 +75,7 @@ NOC_FILES=(
 
 FULL_FILES=(
   "${CORE_FILES[@]}"
+  "${ALU_FILES[@]}"
   "$RTL_DIR/execution_chiplets/fpu/fpu_pipe.sv"
   "$RTL_DIR/execution_chiplets/fpu/fpu_chiplet_top.sv"
   "$RTL_DIR/execution_chiplets/simd/simd_chiplet_top.sv"
@@ -92,10 +93,10 @@ run_verilator() {
   local files=("$@")
 
   echo "=== Verilating $top ==="
-  verilator --sv --cc --exe --build --trace \
-    -Wall -Wno-UNOPTFLAT -Wno-BLKANDNBLK \
+  verilator --sv --binary --trace \
+    --timing \
+    -Wall -Wno-fatal -Wno-UNOPTFLAT -Wno-BLKANDNBLK \
     --top-module "$top" \
-    -CFLAGS "-std=c++17" \
     -I"$RTL_DIR/pkg" \
     "${files[@]}" \
     "$tb" \

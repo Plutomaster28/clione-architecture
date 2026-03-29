@@ -9,6 +9,10 @@ module tb_full_system;
   import clione_pkg::*;
 
   logic clk, rst_n;
+  logic [SMT_WAYS-1:0] thread_active;
+  logic                ext_interrupt;
+  logic [63:0]         int_vector;
+  logic [TID_WIDTH-1:0] int_tid;
 
   // --------------------------------------------------------------------------
   // NoC fabric wires — 16 nodes × 5 ports
@@ -16,11 +20,19 @@ module tb_full_system;
   localparam int NUM_NODES = 16;
 
   noc_pkt_t  node_tx_pkt   [NUM_NODES-1:0];
-  logic      node_tx_valid [NUM_NODES-1:0];
-  logic      node_tx_credit[NUM_NODES-1:0];
+  logic [NUM_NODES-1:0] node_tx_valid;
+  logic [NUM_NODES-1:0] node_tx_credit;
   noc_pkt_t  node_rx_pkt   [NUM_NODES-1:0];
-  logic      node_rx_valid [NUM_NODES-1:0];
-  logic      node_rx_credit[NUM_NODES-1:0];
+  logic [NUM_NODES-1:0] node_rx_valid;
+  logic [NUM_NODES-1:0] node_rx_credit;
+
+  // Core die has ISSUE_WIDTH NoC lanes; bridge lane 0 to mesh node 0.
+  noc_pkt_t core_noc_tx_pkt   [ISSUE_WIDTH-1:0];
+  logic     core_noc_tx_valid [ISSUE_WIDTH-1:0];
+  logic     core_noc_tx_ready [ISSUE_WIDTH-1:0];
+  noc_pkt_t core_noc_rx_pkt   [ISSUE_WIDTH-1:0];
+  logic     core_noc_rx_valid [ISSUE_WIDTH-1:0];
+  logic     core_noc_rx_ready [ISSUE_WIDTH-1:0];
 
   // --------------------------------------------------------------------------
   // NoC Fabric
@@ -39,32 +51,51 @@ module tb_full_system;
   // --------------------------------------------------------------------------
   // Core Die (node 0)
   // --------------------------------------------------------------------------
+  assign node_tx_pkt[0]    = core_noc_tx_pkt[0];
+  assign node_tx_valid[0]  = core_noc_tx_valid[0];
+  assign core_noc_tx_ready[0] = node_tx_credit[0];
+  assign core_noc_rx_pkt[0]   = node_rx_pkt[0];
+  assign core_noc_rx_valid[0] = node_rx_valid[0];
+  assign node_rx_credit[0]    = core_noc_rx_ready[0];
+
+  generate
+    for (genvar i = 1; i < ISSUE_WIDTH; i++) begin : g_core_noc_tieoff
+      assign core_noc_tx_ready[i] = 1'b1;
+      assign core_noc_rx_pkt[i]   = '0;
+      assign core_noc_rx_valid[i] = 1'b0;
+    end
+  endgenerate
+
   core_die_top u_core (
     .clk            ( clk                     ),
     .rst_n          ( rst_n                   ),
-    .noc_tx_pkt     ( node_tx_pkt  [0]        ),
-    .noc_tx_valid   ( node_tx_valid[0]        ),
-    .noc_tx_ready   ( node_tx_credit[0]       ),
-    .noc_rx_pkt     ( node_rx_pkt  [0]        ),
-    .noc_rx_valid   ( node_rx_valid[0]        ),
-    .noc_rx_ready   ( node_rx_credit[0]       ),
+    .thread_active  ( thread_active           ),
+    .noc_tx_pkt     ( core_noc_tx_pkt         ),
+    .noc_tx_valid   ( core_noc_tx_valid       ),
+    .noc_tx_ready   ( core_noc_tx_ready       ),
+    .noc_rx_pkt     ( core_noc_rx_pkt         ),
+    .noc_rx_valid   ( core_noc_rx_valid       ),
+    .noc_rx_ready   ( core_noc_rx_ready       ),
     .cache_tx_pkt   ( node_tx_pkt  [9]        ), // L2 node 9 = (1,2)
     .cache_tx_valid ( node_tx_valid[9]        ),
     .cache_tx_ready ( node_tx_credit[9]       ),
     .cache_rx_pkt   ( node_rx_pkt  [9]        ),
     .cache_rx_valid ( node_rx_valid[9]        ),
-    .cache_rx_ready ( node_rx_credit[9]       )
+    .cache_rx_ready ( node_rx_credit[9]       ),
+    .ext_interrupt  ( ext_interrupt           ),
+    .int_vector     ( int_vector              ),
+    .int_tid        ( int_tid                 )
   );
 
   // --------------------------------------------------------------------------
   // ALU Chiplet 0 (node 1)
   // --------------------------------------------------------------------------
-  noc_pkt_t  alu_bypass;
-  logic      alu_bypass_v;
-  noc_pkt_t  alu_peer [7:0];
-  logic [7:0] alu_peer_v;
+  exec_result_t alu_bypass;
+  logic         alu_bypass_v;
+  exec_result_t alu_peer [7:0];
+  logic         alu_peer_v [7:0];
   assign alu_peer   = '{default: '0};
-  assign alu_peer_v = '0;
+  assign alu_peer_v = '{default: 1'b0};
 
   alu_chiplet_top #(.CHIPLET_NODE_ID(5'h01)) u_alu0 (
     .clk              ( clk                    ),
@@ -78,12 +109,19 @@ module tb_full_system;
     .bypass_result    ( alu_bypass             ),
     .bypass_valid     ( alu_bypass_v           ),
     .peer_bypass      ( alu_peer               ),
-    .peer_bypass_valid( alu_peer_v             )
+    .peer_valid       ( alu_peer_v             )
   );
 
   // --------------------------------------------------------------------------
   // FPU Chiplet 0 (node 4 = index 4)
   // --------------------------------------------------------------------------
+  exec_result_t fpu_bypass;
+  logic         fpu_bypass_v;
+  exec_result_t fpu_peer [7:0];
+  logic         fpu_peer_v [7:0];
+  assign fpu_peer   = '{default: '0};
+  assign fpu_peer_v = '{default: 1'b0};
+
   fpu_chiplet_top #(.CHIPLET_NODE_ID(5'h04)) u_fpu0 (
     .clk    ( clk                    ),
     .rst_n  ( rst_n                  ),
@@ -92,12 +130,23 @@ module tb_full_system;
     .rx_ready( node_rx_credit[4]     ),
     .tx_pkt ( node_tx_pkt  [4]       ),
     .tx_valid( node_tx_valid[4]      ),
-    .tx_ready( node_tx_credit[4]     )
+    .tx_ready( node_tx_credit[4]     ),
+    .bypass_result( fpu_bypass       ),
+    .bypass_valid ( fpu_bypass_v     ),
+    .peer_bypass  ( fpu_peer         ),
+    .peer_valid   ( fpu_peer_v       )
   );
 
   // --------------------------------------------------------------------------
   // SIMD Chiplet 0 (node 6)
   // --------------------------------------------------------------------------
+  exec_result_t simd_bypass;
+  logic         simd_bypass_v;
+  exec_result_t simd_peer [7:0];
+  logic         simd_peer_v [7:0];
+  assign simd_peer   = '{default: '0};
+  assign simd_peer_v = '{default: 1'b0};
+
   simd_chiplet_top #(.CHIPLET_NODE_ID(5'h06)) u_simd0 (
     .clk    ( clk                    ),
     .rst_n  ( rst_n                  ),
@@ -106,12 +155,19 @@ module tb_full_system;
     .rx_ready( node_rx_credit[6]     ),
     .tx_pkt ( node_tx_pkt  [6]       ),
     .tx_valid( node_tx_valid[6]      ),
-    .tx_ready( node_tx_credit[6]     )
+    .tx_ready( node_tx_credit[6]     ),
+    .bypass_result( simd_bypass      ),
+    .bypass_valid ( simd_bypass_v    ),
+    .peer_bypass  ( simd_peer        ),
+    .peer_valid   ( simd_peer_v      )
   );
 
   // --------------------------------------------------------------------------
   // Crypto Chiplet (node 8)
   // --------------------------------------------------------------------------
+  exec_result_t crypto_bypass;
+  logic         crypto_bypass_v;
+
   crypto_chiplet_top #(.CHIPLET_NODE_ID(5'h08)) u_crypto (
     .clk    ( clk                    ),
     .rst_n  ( rst_n                  ),
@@ -120,7 +176,9 @@ module tb_full_system;
     .rx_ready( node_rx_credit[8]     ),
     .tx_pkt ( node_tx_pkt  [8]       ),
     .tx_valid( node_tx_valid[8]      ),
-    .tx_ready( node_tx_credit[8]     )
+    .tx_ready( node_tx_credit[8]     ),
+    .bypass_result( crypto_bypass    ),
+    .bypass_valid ( crypto_bypass_v  )
   );
 
   // --------------------------------------------------------------------------
@@ -170,6 +228,10 @@ module tb_full_system;
     $dumpvars(1, tb_full_system);
 
     rst_n = 0;
+    thread_active = '1;
+    ext_interrupt = 1'b0;
+    int_vector    = '0;
+    int_tid       = '0;
     repeat(20) @(posedge clk);
     rst_n = 1;
 
@@ -191,7 +253,7 @@ module tb_full_system;
   always @(posedge clk) begin
     if (rst_n && u_core.retire_valid[0])
       $display("[%0t] RETIRE pc=%h rob=%0d",
-        $time, u_core.retire_pc[0], u_core.retire_rob_idx[0]);
+        $time, u_core.retire_entry[0].pc, u_core.retire_entry[0].rob_idx);
   end
 
   // Monitor NoC traffic

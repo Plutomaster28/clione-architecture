@@ -64,7 +64,7 @@ module reorder_buffer
       tail  <= '0;
       count <= '0;
       for (int i = 0; i < ROB_DEPTH; i++)
-        rob[i] <= '0;
+        rob[i] = '0;
     end else begin
       // ----- Allocation -----
       if (alloc_ready) begin
@@ -127,10 +127,10 @@ module reorder_buffer
               // Stop retiring additional instructions for this thread
               break;
             end else begin
-              retire_valid[i] <= 1'b1;
-              retire_entry[i] <= rob[h];
-              retire_phys[i]  <= rob[h].phys_rd_old; // free the old mapping
-              retire_tid[i]   <= rob[h].tid;
+              retire_valid[i] = 1'b1;
+              retire_entry[i] = rob[h];
+              retire_phys[i]  = rob[h].phys_rd_old; // free the old mapping
+              retire_tid[i]   = rob[h].tid;
               retire_cnt++;
             end
           end else begin

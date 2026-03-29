@@ -4,6 +4,7 @@
     "dir::../../rtl/pkg/clione_pkg.sv",
     "dir::../../rtl/cache_chiplets/l2_cache_chiplet.sv"
   ],
+  "VERILOG_INCLUDE_DIRS": ["dir::../../rtl/pkg"],
   "CLOCK_PORT": "clk",
   "CLOCK_PERIOD": 3.00,
   "FP_SIZING": "absolute",

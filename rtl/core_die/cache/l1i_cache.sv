@@ -116,11 +116,11 @@ module l1i_cache
     if (!rst_n) begin
       for (int w = 0; w < WAYS; w++)
         for (int s = 0; s < NUM_SETS; s++) begin
-          valid_array[w][s] <= 1'b0;
-          tag_array[w][s]   <= '0;
+          valid_array[w][s] = 1'b0;
+          tag_array[w][s]   = '0;
         end
       for (int m = 0; m < MSHR_DEPTH; m++)
-        mshr[m] <= '0;
+        mshr[m] = '0;
     end else begin
       // Invalidation
       if (inv_valid) begin
@@ -148,7 +148,7 @@ module l1i_cache
         for (int m = 0; m < MSHR_DEPTH; m++) begin
           if (mshr[m].valid && mshr[m].paddr[PADDR_WIDTH-1:LINE_OFF_BITS] ==
                                fill_paddr[PADDR_WIDTH-1:LINE_OFF_BITS])
-            mshr[m].valid <= 1'b0;
+            mshr[m].valid = 1'b0;
         end
       end
 
@@ -156,8 +156,8 @@ module l1i_cache
       if (req_valid && !cache_hit && !mshr_hit) begin
         for (int m = 0; m < MSHR_DEPTH; m++) begin
           if (!mshr[m].valid) begin
-            mshr[m].paddr <= req_paddr;
-            mshr[m].valid <= 1'b1;
+            mshr[m].paddr = req_paddr;
+            mshr[m].valid = 1'b1;
             break;
           end
         end

@@ -142,9 +142,9 @@ module l1d_cache
     if (!rst_n) begin
       for (int w = 0; w < WAYS; w++)
         for (int s = 0; s < NUM_SETS; s++) begin
-          valid_array[w][s] <= 1'b0;
-          dirty_array[w][s] <= 1'b0;
-          mesi_array[w][s]  <= MESI_I;
+          valid_array[w][s] = 1'b0;
+          dirty_array[w][s] = 1'b0;
+          mesi_array[w][s]  = MESI_I;
         end
       wb_valid <= 1'b0;
     end else begin

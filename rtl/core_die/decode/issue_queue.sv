@@ -92,7 +92,7 @@ module issue_queue
       if (flush_valid) begin
         for (int i = 0; i < IQ_DEPTH; i++) begin
           if (iq[i].valid && iq[i].uop.tid == flush_tid)
-            iq[i].valid <= 1'b0;
+            iq[i].valid = 1'b0;
         end
       end
 
@@ -103,13 +103,13 @@ module issue_queue
             if (cdb_valid[c] && cdb[c].valid) begin
               if (!iq[i].rs1_ready &&
                   iq[i].uop.phys_rs1 == cdb[c].phys_rd)
-                iq[i].rs1_ready <= 1'b1;
+                iq[i].rs1_ready = 1'b1;
               if (!iq[i].rs2_ready &&
                   iq[i].uop.phys_rs2 == cdb[c].phys_rd)
-                iq[i].rs2_ready <= 1'b1;
+                iq[i].rs2_ready = 1'b1;
               if (!iq[i].rs3_ready &&
                   iq[i].uop.phys_rs3 == cdb[c].phys_rd)
-                iq[i].rs3_ready <= 1'b1;
+                iq[i].rs3_ready = 1'b1;
             end
           end
         end
@@ -143,8 +143,9 @@ module issue_queue
           // Find and invalidate the matching IQ slot (by rob_idx)
           for (int i = 0; i < IQ_DEPTH; i++) begin
             if (iq[i].valid && iq[i].issued &&
-                iq[i].uop.rob_idx == issue_uop[j].rob_idx)
-              iq[i].valid <= 1'b0;
+                iq[i].uop.rob_idx == issue_uop[j].rob_idx) begin
+              iq[i].valid = 1'b0;
+            end
           end
         end
       end

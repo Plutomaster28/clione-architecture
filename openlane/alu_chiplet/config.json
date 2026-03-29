@@ -1,10 +1,9 @@
 {
   "DESIGN_NAME": "alu_chiplet_top",
   "VERILOG_FILES": [
-    "dir::../../rtl/pkg/clione_pkg.sv",
-    "dir::../../rtl/execution_chiplets/alu/alu_pipe.sv",
-    "dir::../../rtl/execution_chiplets/alu/alu_chiplet_top.sv"
+    "dir::generated/alu_chiplet_top.v"
   ],
+  "VERILOG_INCLUDE_DIRS": [],
   "CLOCK_PORT": "clk",
   "CLOCK_PERIOD": 2.50,
   "FP_SIZING": "absolute",

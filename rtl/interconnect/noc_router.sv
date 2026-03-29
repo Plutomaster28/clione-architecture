@@ -143,11 +143,11 @@ module noc_router
                 automatic logic [2:0] dst_port = compute_out_port(pkt.dst_node);
                 if (int'(dst_port) == op) begin
                   // Grant: route this packet
-                  out_pkt[op]       <= pkt;
-                  out_valid[op]     <= 1'b1;
-                  vc_rdptr[ip][v]   <= vc_rdptr[ip][v] + 3'd1;
-                  vc_count[ip][v]   <= vc_count[ip][v] - 4'd1;
-                  out_arb_rr[op]    <= 3'(ip + 1);
+                  out_pkt[op]       = pkt;
+                  out_valid[op]     = 1'b1;
+                  vc_rdptr[ip][v]   = vc_rdptr[ip][v] + 3'd1;
+                  vc_count[ip][v]   = vc_count[ip][v] - 4'd1;
+                  out_arb_rr[op]    = 3'(ip + 1);
                   found              = 1'b1;
                 end
               end

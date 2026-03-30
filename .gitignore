@@ -6,7 +6,12 @@ results/
 # Simulation/build artifacts
 sim/build/
 sim/waves/
+sim/programs/
 *.vcd
+
+# Python cache artifacts
+__pycache__/
+*.pyc
 
 # OS metadata artifacts
 *.Zone.Identifier

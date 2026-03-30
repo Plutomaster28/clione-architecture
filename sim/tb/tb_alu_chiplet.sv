@@ -80,6 +80,10 @@ module tb_alu_chiplet;
   // R-type: MUL
   localparam logic [31:0] INSTR_MUL  = 32'b0000001_00011_00010_000_00001_0110011;
 
+`ifdef USE_ASSEMBLED_PROGRAM
+  `include "alu_program.svh"
+`endif
+
   int passed = 0, failed = 0;
   logic [63:0] last_result;
 
@@ -117,6 +121,59 @@ module tb_alu_chiplet;
     end
   endtask
 
+  task send_op_no_check;
+    input logic [63:0] a, b;
+    input logic [31:0] instr;
+    input logic [7:0]  rob_idx;
+    begin
+      @(negedge clk);
+      rx_pkt   = make_alu_pkt(a, b, 9'h01, instr, rob_idx);
+      rx_valid = 1'b1;
+      @(posedge clk);
+      #0.1;
+      rx_valid = 1'b0;
+      repeat(10) @(posedge clk);
+      $display("  INFO: op not score-boarded, instr=0x%08h result=%h", instr, last_result);
+    end
+  endtask
+
+  function automatic logic [63:0] expected_for_rtype(
+    input logic [31:0] instr,
+    input logic [63:0] a,
+    input logic [63:0] b,
+    output logic supported
+  );
+    logic [6:0] opcode;
+    logic [2:0] funct3;
+    logic [6:0] funct7;
+    begin
+      opcode = instr[6:0];
+      funct3 = instr[14:12];
+      funct7 = instr[31:25];
+      supported = 1'b1;
+
+      if (opcode != 7'b0110011) begin
+        supported = 1'b0;
+        expected_for_rtype = '0;
+      end else if (funct7 == 7'b0000000 && funct3 == 3'b000) begin
+        expected_for_rtype = a + b;
+      end else if (funct7 == 7'b0100000 && funct3 == 3'b000) begin
+        expected_for_rtype = a - b;
+      end else if (funct7 == 7'b0000000 && funct3 == 3'b100) begin
+        expected_for_rtype = a ^ b;
+      end else if (funct7 == 7'b0000000 && funct3 == 3'b111) begin
+        expected_for_rtype = a & b;
+      end else if (funct7 == 7'b0000000 && funct3 == 3'b110) begin
+        expected_for_rtype = a | b;
+      end else if (funct7 == 7'b0000001 && funct3 == 3'b000) begin
+        expected_for_rtype = a * b;
+      end else begin
+        supported = 1'b0;
+        expected_for_rtype = '0;
+      end
+    end
+  endfunction
+
   initial begin
     $dumpfile("tb_alu_chiplet.vcd");
     $dumpvars(0, tb_alu_chiplet);
@@ -127,6 +184,26 @@ module tb_alu_chiplet;
     rst_n = 1;
     repeat(4) @(posedge clk);
 
+`ifdef USE_ASSEMBLED_PROGRAM
+    begin
+      logic [63:0] a;
+      logic [63:0] b;
+      logic [63:0] expected;
+      logic [31:0] instr;
+      logic supported;
+      $display("=== Running assembled ALU program (%0d instructions) ===", PROGRAM_INST_COUNT);
+      for (int i = 0; i < PROGRAM_INST_COUNT; i++) begin
+        instr = PROGRAM_INSTR_FLAT[((PROGRAM_INST_COUNT-1-i)*32) +: 32];
+        a = 64'h100 + i;
+        b = 64'h20 + (i * 3);
+        expected = expected_for_rtype(instr, a, b, supported);
+        if (supported)
+          send_op(a, b, instr, i[7:0], expected);
+        else
+          send_op_no_check(a, b, instr, i[7:0]);
+      end
+    end
+`else
     // Test ADD: 100 + 200 = 300
     send_op(64'd100, 64'd200, INSTR_ADD, 8'd0, 64'd300);
 
@@ -142,6 +219,7 @@ module tb_alu_chiplet;
     // Test overflow: max_int + 1 wraps
     send_op(64'h7FFFFFFFFFFFFFFF, 64'd1, INSTR_ADD, 8'd4,
             64'h8000000000000000);
+`endif
 
     repeat(20) @(posedge clk);
     $display("=== ALU Chiplet: %0d/%0d tests passed ===", passed, passed+failed);

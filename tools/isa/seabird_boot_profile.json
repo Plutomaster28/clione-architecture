@@ -1,0 +1,30 @@
+{
+  "profile": "seabird_boot_bridge",
+  "version": "0.1",
+  "description": "Bridge profile that accepts SeaBird boot-assembly surface syntax and lowers to currently encodable Clione64 instructions for simulation bring-up.",
+  "base_spec": "clione64_isa.json",
+  "profile_mode": "seabird_boot",
+  "register_aliases": {
+    "AX": "R8",
+    "A0": "R8",
+    "BX": "R9",
+    "A1": "R9",
+    "CX": "R10",
+    "A2": "R10",
+    "DX": "R11",
+    "A3": "R11",
+    "SI": "R12",
+    "B0": "R12",
+    "DI": "R13",
+    "B1": "R13",
+    "BP": "R14",
+    "B2": "R14",
+    "SP": "R15",
+    "B3": "R15"
+  },
+  "seabird_boot_supported_mnemonics": [
+    "MOVI", "MOV", "ADD", "ADDI", "SUB", "SUBI", "AND", "ANDI", "OR", "ORI", "XOR", "XORI",
+    "NOT", "SHR", "LD", "ST", "STW", "STQ", "LEA", "RDCR", "WRCR", "CLI", "STI", "HLT", "RDTS",
+    "MEMFILL", "JMP", "CALL", "RET", "JZ", "JNZ", "BRR", "PUSH", "POP", "PUSHF", "POPF", "TSTI"
+  ]
+}

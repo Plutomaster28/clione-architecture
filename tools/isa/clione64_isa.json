@@ -1,0 +1,294 @@
+{
+  "profile": "clione64_rtl_bringup",
+  "version": "0.1",
+  "description": "Machine-readable encoding table for simulation bring-up. This matches current RTL opcode decoding, not the full SeaBird doc surface.",
+  "xlen": 64,
+  "instruction_width": 32,
+  "registers": 32,
+  "formats": {
+    "R": {"fields": ["funct7", "rs2", "rs1", "funct3", "rd", "opcode"]},
+    "I": {"fields": ["imm12", "rs1", "funct3", "rd", "opcode"]},
+    "S": {"fields": ["imm11_5", "rs2", "rs1", "funct3", "imm4_0", "opcode"]},
+    "B": {"fields": ["imm12", "imm10_5", "rs2", "rs1", "funct3", "imm4_1", "imm11", "opcode"]},
+    "U": {"fields": ["imm31_12", "rd", "opcode"]},
+    "J": {"fields": ["imm20", "imm10_1", "imm11", "imm19_12", "rd", "opcode"]}
+  },
+  "instructions": {
+    "ADD":  {"format": "R", "opcode": "0b0110011", "funct3": "0b000", "funct7": "0b0000000"},
+    "SUB":  {"format": "R", "opcode": "0b0110011", "funct3": "0b000", "funct7": "0b0100000"},
+    "SLL":  {"format": "R", "opcode": "0b0110011", "funct3": "0b001", "funct7": "0b0000000"},
+    "SLT":  {"format": "R", "opcode": "0b0110011", "funct3": "0b010", "funct7": "0b0000000"},
+    "SLTU": {"format": "R", "opcode": "0b0110011", "funct3": "0b011", "funct7": "0b0000000"},
+    "XOR":  {"format": "R", "opcode": "0b0110011", "funct3": "0b100", "funct7": "0b0000000"},
+    "SRL":  {"format": "R", "opcode": "0b0110011", "funct3": "0b101", "funct7": "0b0000000"},
+    "SRA":  {"format": "R", "opcode": "0b0110011", "funct3": "0b101", "funct7": "0b0100000"},
+    "OR":   {"format": "R", "opcode": "0b0110011", "funct3": "0b110", "funct7": "0b0000000"},
+    "AND":  {"format": "R", "opcode": "0b0110011", "funct3": "0b111", "funct7": "0b0000000"},
+
+    "MUL":  {"format": "R", "opcode": "0b0110011", "funct3": "0b000", "funct7": "0b0000001"},
+    "MULH": {"format": "R", "opcode": "0b0110011", "funct3": "0b001", "funct7": "0b0000001"},
+    "DIV":  {"format": "R", "opcode": "0b0110011", "funct3": "0b100", "funct7": "0b0000001"},
+    "REM":  {"format": "R", "opcode": "0b0110011", "funct3": "0b110", "funct7": "0b0000001"},
+
+    "ADDI": {"format": "I", "opcode": "0b0010011", "funct3": "0b000"},
+    "SLTI": {"format": "I", "opcode": "0b0010011", "funct3": "0b010"},
+    "SLTIU":{"format": "I", "opcode": "0b0010011", "funct3": "0b011"},
+    "XORI": {"format": "I", "opcode": "0b0010011", "funct3": "0b100"},
+    "ORI":  {"format": "I", "opcode": "0b0010011", "funct3": "0b110"},
+    "ANDI": {"format": "I", "opcode": "0b0010011", "funct3": "0b111"},
+    "SLLI": {"format": "I", "opcode": "0b0010011", "funct3": "0b001", "imm_high": "0b0000000"},
+    "SRLI": {"format": "I", "opcode": "0b0010011", "funct3": "0b101", "imm_high": "0b0000000"},
+    "SRAI": {"format": "I", "opcode": "0b0010011", "funct3": "0b101", "imm_high": "0b0100000"},
+
+    "LD":   {"format": "I", "opcode": "0b0000011", "funct3": "0b011", "memory": true},
+    "LW":   {"format": "I", "opcode": "0b0000011", "funct3": "0b010", "memory": true},
+    "LHU":  {"format": "I", "opcode": "0b0000011", "funct3": "0b101", "memory": true},
+    "LBU":  {"format": "I", "opcode": "0b0000011", "funct3": "0b100", "memory": true},
+
+    "SD":   {"format": "S", "opcode": "0b0100011", "funct3": "0b011", "memory": true},
+    "SW":   {"format": "S", "opcode": "0b0100011", "funct3": "0b010", "memory": true},
+
+    "BEQ":  {"format": "B", "opcode": "0b1100011", "funct3": "0b000"},
+    "BNE":  {"format": "B", "opcode": "0b1100011", "funct3": "0b001"},
+    "BLT":  {"format": "B", "opcode": "0b1100011", "funct3": "0b100"},
+    "BGE":  {"format": "B", "opcode": "0b1100011", "funct3": "0b101"},
+    "BLTU": {"format": "B", "opcode": "0b1100011", "funct3": "0b110"},
+    "BGEU": {"format": "B", "opcode": "0b1100011", "funct3": "0b111"},
+
+    "LUI":   {"format": "U", "opcode": "0b0110111"},
+    "AUIPC": {"format": "U", "opcode": "0b0010111"},
+    "JAL":   {"format": "J", "opcode": "0b1101111"},
+    "JALR":  {"format": "I", "opcode": "0b1100111", "funct3": "0b000"}
+  },
+  "seabird_catalog": {
+    "version": "1.1",
+    "description": "Full documented SeaBird ISA catalog. Entries here are documentation-level semantic opcodes and classes; they are not all mapped to current RTL bitfield encodings.",
+    "instruction_count_documented": 160,
+    "instruction_count_enumerated": 161,
+    "classes": {
+      "data_movement": {
+        "opcode_range": "0x00-0x1F",
+        "count": 23,
+        "instructions": [
+          {"mnemonic": "MOV", "opcode": "0x00"},
+          {"mnemonic": "MOVI", "opcode": "0x01"},
+          {"mnemonic": "MOVZX", "opcode": "0x02"},
+          {"mnemonic": "MOVSX", "opcode": "0x03"},
+          {"mnemonic": "MOVHI", "opcode": "0x04"},
+          {"mnemonic": "MOVLO", "opcode": "0x05"},
+          {"mnemonic": "MOVSWP", "opcode": "0x06"},
+          {"mnemonic": "LD", "opcode": "0x10"},
+          {"mnemonic": "ST", "opcode": "0x11"},
+          {"mnemonic": "LDI", "opcode": "0x12"},
+          {"mnemonic": "LDB", "opcode": "0x13"},
+          {"mnemonic": "LDH", "opcode": "0x14"},
+          {"mnemonic": "LDW", "opcode": "0x15"},
+          {"mnemonic": "LDQ", "opcode": "0x16"},
+          {"mnemonic": "STB", "opcode": "0x17"},
+          {"mnemonic": "STH", "opcode": "0x18"},
+          {"mnemonic": "STW", "opcode": "0x19"},
+          {"mnemonic": "STQ", "opcode": "0x1A"},
+          {"mnemonic": "LDP", "opcode": "0x1B"},
+          {"mnemonic": "STP", "opcode": "0x1C"},
+          {"mnemonic": "LEA", "opcode": "0x1D"},
+          {"mnemonic": "LEAS", "opcode": "0x1E"},
+          {"mnemonic": "XCHG", "opcode": "0x1F"}
+        ]
+      },
+      "arithmetic": {
+        "opcode_range": "0x20-0x3F",
+        "count": 26,
+        "instructions": [
+          {"mnemonic": "ADD", "opcode": "0x20"},
+          {"mnemonic": "ADDI", "opcode": "0x21"},
+          {"mnemonic": "SUB", "opcode": "0x22"},
+          {"mnemonic": "SUBI", "opcode": "0x23"},
+          {"mnemonic": "MUL", "opcode": "0x24"},
+          {"mnemonic": "MULI", "opcode": "0x25"},
+          {"mnemonic": "DIV", "opcode": "0x26"},
+          {"mnemonic": "DIVI", "opcode": "0x27"},
+          {"mnemonic": "MOD", "opcode": "0x28"},
+          {"mnemonic": "MODI", "opcode": "0x29"},
+          {"mnemonic": "NEG", "opcode": "0x2A"},
+          {"mnemonic": "INC", "opcode": "0x2B"},
+          {"mnemonic": "DEC", "opcode": "0x2C"},
+          {"mnemonic": "MULH", "opcode": "0x2D"},
+          {"mnemonic": "UMUL", "opcode": "0x2E"},
+          {"mnemonic": "UDIV", "opcode": "0x2F"},
+          {"mnemonic": "ADDS", "opcode": "0x30"},
+          {"mnemonic": "ADDU", "opcode": "0x31"},
+          {"mnemonic": "SUBS", "opcode": "0x32"},
+          {"mnemonic": "SUBU", "opcode": "0x33"},
+          {"mnemonic": "ABS", "opcode": "0x34"},
+          {"mnemonic": "CLZ", "opcode": "0x35"},
+          {"mnemonic": "CTZ", "opcode": "0x36"},
+          {"mnemonic": "POPC", "opcode": "0x37"}
+        ]
+      },
+      "logic_and_bit": {
+        "opcode_range": "0x40-0x51",
+        "count": 18,
+        "instructions": [
+          {"mnemonic": "AND", "opcode": "0x40"},
+          {"mnemonic": "OR", "opcode": "0x41"},
+          {"mnemonic": "XOR", "opcode": "0x42"},
+          {"mnemonic": "NOT", "opcode": "0x43"},
+          {"mnemonic": "NAND", "opcode": "0x44"},
+          {"mnemonic": "NOR", "opcode": "0x45"},
+          {"mnemonic": "XNOR", "opcode": "0x46"},
+          {"mnemonic": "SHL", "opcode": "0x47"},
+          {"mnemonic": "SHR", "opcode": "0x48"},
+          {"mnemonic": "SAR", "opcode": "0x49"},
+          {"mnemonic": "ROL", "opcode": "0x4A"},
+          {"mnemonic": "ROR", "opcode": "0x4B"},
+          {"mnemonic": "BSET", "opcode": "0x4C"},
+          {"mnemonic": "BCLR", "opcode": "0x4D"},
+          {"mnemonic": "BTOG", "opcode": "0x4E"},
+          {"mnemonic": "BTST", "opcode": "0x4F"},
+          {"mnemonic": "MASK", "opcode": "0x50"},
+          {"mnemonic": "EXT", "opcode": "0x51"}
+        ]
+      },
+      "comparison": {
+        "opcode_range": "0x52-0x5B",
+        "count": 10,
+        "instructions": [
+          {"mnemonic": "CMP", "opcode": "0x52"},
+          {"mnemonic": "CMPI", "opcode": "0x53"},
+          {"mnemonic": "CMPS", "opcode": "0x54"},
+          {"mnemonic": "CMPU", "opcode": "0x55"},
+          {"mnemonic": "TST", "opcode": "0x56"},
+          {"mnemonic": "TSTI", "opcode": "0x57"},
+          {"mnemonic": "MAX", "opcode": "0x58"},
+          {"mnemonic": "MIN", "opcode": "0x59"},
+          {"mnemonic": "SLT", "opcode": "0x5A"},
+          {"mnemonic": "SGT", "opcode": "0x5B"}
+        ]
+      },
+      "branch_and_control": {
+        "opcode_range": "0x5C-0x71",
+        "count": 22,
+        "instructions": [
+          {"mnemonic": "JMP", "opcode": "0x5C"},
+          {"mnemonic": "JMPA", "opcode": "0x5D"},
+          {"mnemonic": "CALL", "opcode": "0x5E"},
+          {"mnemonic": "CALLA", "opcode": "0x5F"},
+          {"mnemonic": "RET", "opcode": "0x60"},
+          {"mnemonic": "JE", "opcode": "0x61"},
+          {"mnemonic": "JNE", "opcode": "0x62"},
+          {"mnemonic": "JG", "opcode": "0x63"},
+          {"mnemonic": "JGE", "opcode": "0x64"},
+          {"mnemonic": "JL", "opcode": "0x65"},
+          {"mnemonic": "JLE", "opcode": "0x66"},
+          {"mnemonic": "JC", "opcode": "0x67"},
+          {"mnemonic": "JNC", "opcode": "0x68"},
+          {"mnemonic": "JO", "opcode": "0x69"},
+          {"mnemonic": "JNO", "opcode": "0x6A"},
+          {"mnemonic": "JS", "opcode": "0x6B"},
+          {"mnemonic": "JNS", "opcode": "0x6C"},
+          {"mnemonic": "JZR", "opcode": "0x6D"},
+          {"mnemonic": "JNZR", "opcode": "0x6E"},
+          {"mnemonic": "BRR", "opcode": "0x6F"},
+          {"mnemonic": "TRAP", "opcode": "0x70"},
+          {"mnemonic": "YIELD", "opcode": "0x71"}
+        ]
+      },
+      "memory_extensions": {
+        "opcode_range": "0x72-0x7D",
+        "count": 12,
+        "instructions": [
+          {"mnemonic": "PREFETCH", "opcode": "0x72"},
+          {"mnemonic": "FLUSH", "opcode": "0x73"},
+          {"mnemonic": "INVIC", "opcode": "0x74"},
+          {"mnemonic": "INVDC", "opcode": "0x75"},
+          {"mnemonic": "LDX", "opcode": "0x76"},
+          {"mnemonic": "STX", "opcode": "0x77"},
+          {"mnemonic": "LDN", "opcode": "0x78"},
+          {"mnemonic": "STN", "opcode": "0x79"},
+          {"mnemonic": "MOVM", "opcode": "0x7A"},
+          {"mnemonic": "CPYB", "opcode": "0x7B"},
+          {"mnemonic": "CPYW", "opcode": "0x7C"},
+          {"mnemonic": "MEMFILL", "opcode": "0x7D"}
+        ]
+      },
+      "system_and_privileged": {
+        "opcode_range": "0x7E-0x8C",
+        "count": 15,
+        "instructions": [
+          {"mnemonic": "HLT", "opcode": "0x7E"},
+          {"mnemonic": "RESET", "opcode": "0x7F"},
+          {"mnemonic": "RDCR", "opcode": "0x80"},
+          {"mnemonic": "WRCR", "opcode": "0x81"},
+          {"mnemonic": "SYSCALL", "opcode": "0x82"},
+          {"mnemonic": "SYSRET", "opcode": "0x83"},
+          {"mnemonic": "IRET", "opcode": "0x84"},
+          {"mnemonic": "CLI", "opcode": "0x85"},
+          {"mnemonic": "STI", "opcode": "0x86"},
+          {"mnemonic": "WFI", "opcode": "0x87"},
+          {"mnemonic": "RDTIME", "opcode": "0x88"},
+          {"mnemonic": "RDTS", "opcode": "0x89"},
+          {"mnemonic": "SLEEP", "opcode": "0x8A"},
+          {"mnemonic": "GETPID", "opcode": "0x8B"},
+          {"mnemonic": "GETTID", "opcode": "0x8C"}
+        ]
+      },
+      "stack_and_call_frame": {
+        "opcode_range": "0x8D-0x96",
+        "count": 10,
+        "instructions": [
+          {"mnemonic": "PUSH", "opcode": "0x8D"},
+          {"mnemonic": "POP", "opcode": "0x8E"},
+          {"mnemonic": "PUSHA", "opcode": "0x8F"},
+          {"mnemonic": "POPA", "opcode": "0x90"},
+          {"mnemonic": "ENTER", "opcode": "0x91"},
+          {"mnemonic": "LEAVE", "opcode": "0x92"},
+          {"mnemonic": "PUSHF", "opcode": "0x93"},
+          {"mnemonic": "POPF", "opcode": "0x94"},
+          {"mnemonic": "PUSHQ", "opcode": "0x95"},
+          {"mnemonic": "POPQ", "opcode": "0x96"}
+        ]
+      },
+      "simd_and_vector": {
+        "opcode_range": "0x97-0xA5",
+        "count": 15,
+        "instructions": [
+          {"mnemonic": "VADD", "opcode": "0x97"},
+          {"mnemonic": "VSUB", "opcode": "0x98"},
+          {"mnemonic": "VMUL", "opcode": "0x99"},
+          {"mnemonic": "VDIV", "opcode": "0x9A"},
+          {"mnemonic": "VAND", "opcode": "0x9B"},
+          {"mnemonic": "VOR", "opcode": "0x9C"},
+          {"mnemonic": "VXOR", "opcode": "0x9D"},
+          {"mnemonic": "VSHL", "opcode": "0x9E"},
+          {"mnemonic": "VSHR", "opcode": "0x9F"},
+          {"mnemonic": "VDUP", "opcode": "0xA0"},
+          {"mnemonic": "VLD", "opcode": "0xA1"},
+          {"mnemonic": "VST", "opcode": "0xA2"},
+          {"mnemonic": "VABS", "opcode": "0xA3"},
+          {"mnemonic": "VMAX", "opcode": "0xA4"},
+          {"mnemonic": "VMIN", "opcode": "0xA5"}
+        ]
+      },
+      "floating_point": {
+        "opcode_range": "0xA6-0xAF",
+        "count": 10,
+        "instructions": [
+          {"mnemonic": "FADD", "opcode": "0xA6"},
+          {"mnemonic": "FSUB", "opcode": "0xA7"},
+          {"mnemonic": "FMUL", "opcode": "0xA8"},
+          {"mnemonic": "FDIV", "opcode": "0xA9"},
+          {"mnemonic": "FSQRT", "opcode": "0xAA"},
+          {"mnemonic": "FCMP", "opcode": "0xAB"},
+          {"mnemonic": "FCVTI", "opcode": "0xAC"},
+          {"mnemonic": "FCVTS", "opcode": "0xAD"},
+          {"mnemonic": "FNEG", "opcode": "0xAE"},
+          {"mnemonic": "FABS", "opcode": "0xAF"}
+        ]
+      }
+    }
+  },
+  "aliases": {
+    "MOV": "ADDI",
+    "NOP": "ADDI"
+  }
+}

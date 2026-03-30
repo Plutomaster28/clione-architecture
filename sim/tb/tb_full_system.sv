@@ -8,6 +8,10 @@
 module tb_full_system;
   import clione_pkg::*;
 
+`ifdef USE_ASSEMBLED_PROGRAM
+  `include "full_program.svh"
+`endif
+
   logic clk, rst_n;
   logic [SMT_WAYS-1:0] thread_active;
   logic                ext_interrupt;
@@ -18,6 +22,51 @@ module tb_full_system;
   // NoC fabric wires — 16 nodes × 5 ports
   // --------------------------------------------------------------------------
   localparam int NUM_NODES = 16;
+
+`ifdef USE_ASSEMBLED_PROGRAM
+  localparam int L1I_LINE_BYTES_TB = CACHE_LINE_BYTES;
+  localparam int L1I_SET_BITS_TB   = $clog2((L1I_SIZE_KB * 1024) / (CACHE_LINE_BYTES * L1I_WAYS));
+  localparam int L1I_LINE_OFF_BITS_TB = $clog2(CACHE_LINE_BYTES);
+  localparam int L1I_TAG_BITS_TB = PADDR_WIDTH - L1I_SET_BITS_TB - L1I_LINE_OFF_BITS_TB;
+  localparam logic [31:0] NOP_INSTR = 32'h00000013;
+
+  task automatic preload_full_program;
+    logic [PADDR_WIDTH-1:0] base_addr;
+    int lines_needed;
+    begin
+      base_addr = 52'h1000;
+      lines_needed = (PROGRAM_INST_COUNT + 15) / 16;
+
+      for (int li = 0; li < lines_needed; li++) begin
+        logic [PADDR_WIDTH-1:0] line_addr;
+        logic [L1I_SET_BITS_TB-1:0] set_idx;
+        logic [L1I_TAG_BITS_TB-1:0] tag;
+        logic [CACHE_LINE_BITS-1:0] line_data;
+
+        line_addr = base_addr + (li * L1I_LINE_BYTES_TB);
+        set_idx   = line_addr[L1I_LINE_OFF_BITS_TB + L1I_SET_BITS_TB - 1 : L1I_LINE_OFF_BITS_TB];
+        tag       = line_addr[PADDR_WIDTH-1 : L1I_LINE_OFF_BITS_TB + L1I_SET_BITS_TB];
+        line_data = '0;
+
+        for (int slot = 0; slot < 16; slot++) begin
+          int idx;
+          logic [31:0] instr;
+          idx = li * 16 + slot;
+          if (idx < PROGRAM_INST_COUNT)
+            instr = PROGRAM_INSTR_FLAT[((PROGRAM_INST_COUNT-1-idx)*32) +: 32];
+          else
+            instr = NOP_INSTR;
+          line_data[slot*32 +: 32] = instr;
+        end
+
+        u_core.u_l1i.data_array[0][set_idx]  = line_data;
+        u_core.u_l1i.tag_array[0][set_idx]   = tag;
+        u_core.u_l1i.valid_array[0][set_idx] = 1'b1;
+      end
+      $display("[TB] Preloaded %0d instructions into full-system core L1I", PROGRAM_INST_COUNT);
+    end
+  endtask
+`endif
 
   noc_pkt_t  node_tx_pkt   [NUM_NODES-1:0];
   logic [NUM_NODES-1:0] node_tx_valid;
@@ -228,12 +277,18 @@ module tb_full_system;
     $dumpvars(1, tb_full_system);
 
     rst_n = 0;
-    thread_active = '1;
+    thread_active = '0;
     ext_interrupt = 1'b0;
     int_vector    = '0;
     int_tid       = '0;
     repeat(20) @(posedge clk);
     rst_n = 1;
+
+  `ifdef USE_ASSEMBLED_PROGRAM
+    repeat(2) @(posedge clk);
+    preload_full_program();
+  `endif
+    thread_active = '1;
 
     $display("[%0t] System reset complete — running...", $time);
     repeat(5000) @(posedge clk);

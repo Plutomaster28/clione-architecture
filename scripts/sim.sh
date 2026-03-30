@@ -2,9 +2,11 @@
 # =============================================================================
 # Clione Architecture — Simulation Script
 # Supported simulators: Verilator, Icarus Verilog, VCS, Xcelium
-# Usage: ./sim.sh [TARGET] [SIMULATOR]
+# Usage: ./sim.sh [TARGET] [SIMULATOR] [PROGRAM_ASM] [ISA_PROFILE]
 #   TARGET     : core | alu | fpu | simd | crypto | l2 | full (default: all)
 #   SIMULATOR  : verilator | iverilog | vcs | xcelium (default: verilator)
+#   PROGRAM_ASM: optional path to assembly file (used for alu/core/full/all)
+#   ISA_PROFILE: optional path to ISA/profile JSON (default: tools/isa/clione64_isa.json)
 # =============================================================================
 set -euo pipefail
 
@@ -17,8 +19,31 @@ WAVE_DIR="$SIM_DIR/waves"
 
 TARGET="${1:-all}"
 SIM="${2:-verilator}"
+PROGRAM_ASM="${3:-}"
+ISA_PROFILE="${4:-$REPO_ROOT/tools/isa/clione64_isa.json}"
+PROGRAM_DIR="$SIM_DIR/programs"
+PROGRAM_HEX="$PROGRAM_DIR/program.hex"
+PROGRAM_SVH_ALU="$PROGRAM_DIR/alu_program.svh"
+PROGRAM_SVH_CORE="$PROGRAM_DIR/core_program.svh"
+PROGRAM_SVH_FULL="$PROGRAM_DIR/full_program.svh"
+
+EXTRA_VERILATOR_FLAGS=()
+EXTRA_IVERILOG_FLAGS=()
+EXTRA_VCS_FLAGS=()
 
 mkdir -p "$BUILD_DIR" "$WAVE_DIR"
+
+if [[ -n "$PROGRAM_ASM" ]]; then
+  mkdir -p "$PROGRAM_DIR"
+  echo "=== Assembling program for simulation: $PROGRAM_ASM ==="
+  python3 "$REPO_ROOT/tools/assemble_clione64.py" "$PROGRAM_ASM" --spec "$ISA_PROFILE" -o "$PROGRAM_HEX" --format hex
+  python3 "$REPO_ROOT/tools/assemble_clione64.py" "$PROGRAM_ASM" --spec "$ISA_PROFILE" -o "$PROGRAM_SVH_ALU" --format sv
+  cp "$PROGRAM_SVH_ALU" "$PROGRAM_SVH_CORE"
+  cp "$PROGRAM_SVH_ALU" "$PROGRAM_SVH_FULL"
+  EXTRA_VERILATOR_FLAGS+=("-I$PROGRAM_DIR" "-DUSE_ASSEMBLED_PROGRAM")
+  EXTRA_IVERILOG_FLAGS+=("-I$PROGRAM_DIR" "-DUSE_ASSEMBLED_PROGRAM")
+  EXTRA_VCS_FLAGS+=("+incdir+$PROGRAM_DIR" "+define+USE_ASSEMBLED_PROGRAM")
+fi
 
 # Common RTL file lists
 PKG_FILES=(
@@ -98,6 +123,7 @@ run_verilator() {
     -Wall -Wno-fatal -Wno-UNOPTFLAT -Wno-BLKANDNBLK \
     --top-module "$top" \
     -I"$RTL_DIR/pkg" \
+    "${EXTRA_VERILATOR_FLAGS[@]}" \
     "${files[@]}" \
     "$tb" \
     --Mdir "$BUILD_DIR/${top}" \
@@ -117,6 +143,7 @@ run_iverilog() {
   echo "=== Compiling $top with Icarus Verilog ==="
   iverilog -g2012 \
     -I"$RTL_DIR/pkg" \
+    "${EXTRA_IVERILOG_FLAGS[@]}" \
     -o "$BUILD_DIR/${top}.vvp" \
     "${files[@]}" "$tb"
 
@@ -136,6 +163,7 @@ run_vcs() {
   vcs -sverilog \
     -timescale=1ns/1ps \
     +incdir+"$RTL_DIR/pkg" \
+    "${EXTRA_VCS_FLAGS[@]}" \
     -o "$BUILD_DIR/${top}_vcs" \
     "${files[@]}" "$tb"
 

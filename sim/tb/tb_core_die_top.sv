@@ -8,6 +8,10 @@
 module tb_core_die_top;
   import clione_pkg::*;
 
+`ifdef USE_ASSEMBLED_PROGRAM
+  `include "core_program.svh"
+`endif
+
   // --------------------------------------------------------------------------
   // DUT signals
   // --------------------------------------------------------------------------
@@ -79,6 +83,51 @@ module tb_core_die_top;
   logic [1:0]  pending_cnt;
   int          result_timer [15:0];
 
+`ifdef USE_ASSEMBLED_PROGRAM
+  localparam int L1I_LINE_BYTES_TB = CACHE_LINE_BYTES;
+  localparam int L1I_SET_BITS_TB   = $clog2((L1I_SIZE_KB * 1024) / (CACHE_LINE_BYTES * L1I_WAYS));
+  localparam int L1I_LINE_OFF_BITS_TB = $clog2(CACHE_LINE_BYTES);
+  localparam int L1I_TAG_BITS_TB = PADDR_WIDTH - L1I_SET_BITS_TB - L1I_LINE_OFF_BITS_TB;
+  localparam logic [31:0] NOP_INSTR = 32'h00000013;
+
+  task automatic preload_core_program;
+    logic [PADDR_WIDTH-1:0] base_addr;
+    int lines_needed;
+    begin
+      base_addr = 52'h1000;
+      lines_needed = (PROGRAM_INST_COUNT + 15) / 16;
+
+      for (int li = 0; li < lines_needed; li++) begin
+        logic [PADDR_WIDTH-1:0] line_addr;
+        logic [L1I_SET_BITS_TB-1:0] set_idx;
+        logic [L1I_TAG_BITS_TB-1:0] tag;
+        logic [CACHE_LINE_BITS-1:0] line_data;
+
+        line_addr = base_addr + (li * L1I_LINE_BYTES_TB);
+        set_idx   = line_addr[L1I_LINE_OFF_BITS_TB + L1I_SET_BITS_TB - 1 : L1I_LINE_OFF_BITS_TB];
+        tag       = line_addr[PADDR_WIDTH-1 : L1I_LINE_OFF_BITS_TB + L1I_SET_BITS_TB];
+        line_data = '0;
+
+        for (int slot = 0; slot < 16; slot++) begin
+          int idx;
+          logic [31:0] instr;
+          idx = li * 16 + slot;
+          if (idx < PROGRAM_INST_COUNT)
+            instr = PROGRAM_INSTR_FLAT[((PROGRAM_INST_COUNT-1-idx)*32) +: 32];
+          else
+            instr = NOP_INSTR;
+          line_data[slot*32 +: 32] = instr;
+        end
+
+        u_dut.u_l1i.data_array[0][set_idx]  = line_data;
+        u_dut.u_l1i.tag_array[0][set_idx]   = tag;
+        u_dut.u_l1i.valid_array[0][set_idx] = 1'b1;
+      end
+      $display("[TB] Preloaded %0d instructions into core L1I", PROGRAM_INST_COUNT);
+    end
+  endtask
+`endif
+
   always_comb begin
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
       noc_tx_ready[i] = 1'b1;
@@ -133,13 +182,19 @@ module tb_core_die_top;
     $dumpvars(0, tb_core_die_top);
 
     // Apply reset
-    thread_active = '1;
+    thread_active = '0;
     ext_interrupt = 1'b0;
     int_vector    = 64'h0;
     int_tid       = '0;
     rst_n = 0;
     repeat(10) @(posedge clk);
     rst_n = 1;
+
+  `ifdef USE_ASSEMBLED_PROGRAM
+    repeat(2) @(posedge clk);
+    preload_core_program();
+  `endif
+    thread_active = '1;
 
     // Run for 2000 cycles
     repeat(2000) @(posedge clk);

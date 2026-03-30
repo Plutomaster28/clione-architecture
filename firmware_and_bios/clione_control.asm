@@ -12,7 +12,7 @@
 ;  board that carries a SeaBird-family processor.
 ;
 ;  Assembler: SeaBird Hybrid Assembler (or compatible)
-;  Entry point: physical address 0xCAFE0000  (vector-reset address per §2.1)
+;  Entry point: vector-reset address 0xCAFE (mapped by platform ROM)
 ; =============================================================================
 
 ; ---------------------------------------------------------------------------
@@ -64,9 +64,9 @@
 
 
 ; =============================================================================
-;  SECTION: Reset Vector  (physical 0xCAFE0000, §2.1 "Vector Reset: 0xCAFE")
+;  SECTION: Reset Vector  (§2.1 "Vector Reset: 0xCAFE")
 ; =============================================================================
-.org    0xCAFE0000
+.org    0xCAFE
 .text
 
 reset_vector:
@@ -230,10 +230,9 @@ clownfish_init:
     OR      AX, #CR0_PE
     WRCR    CR0, AX
 
-    ; Far jump to flush the instruction prefetch queue and load CS with a
-    ; 32-bit code selector.  The .mode directive below switches the assembler
-    ; to emit 32-bit encodings from this point on.
-    JMP     SEL_CODE32 : tetra_init ; long jump: selector + offset
+    ; Jump into Tetra init path after enabling CR0.PE.
+    ; Selector-qualified far-jump syntax is intentionally avoided here.
+    JMP     tetra_init
 
 
 ; =============================================================================
@@ -274,7 +273,7 @@ tetra_init:
     MOVI    CX, #1024               ; 1024 PDE entries
 
 .pd_clear_loop:
-    STW     [AX], #0                ; clear entry
+    STW     [AX], DX                ; clear entry
     ADDI    AX, #4
     SUBI    CX, #1
     JNZ     .pd_clear_loop
@@ -313,9 +312,12 @@ tetra_init:
     ;   [47:32]  type/attributes (0x8E = 32-bit interrupt gate, DPL=0, P=1)
     ;   [63:48]  offset[31:16]
     STW     [AX+0], BX              ; offset low
-    STW     [AX+2], #SEL_CODE32     ; selector
-    STW     [AX+4], #0x8E00         ; type | zero byte
-    STW     [AX+6], #0              ; offset high (stub at low address)
+    MOVI    DX, #SEL_CODE32
+    STW     [AX+2], DX              ; selector
+    MOVI    DX, #0x8E00
+    STW     [AX+4], DX              ; type | zero byte
+    MOVI    DX, #0
+    STW     [AX+6], DX              ; offset high (stub at low address)
     ADDI    AX, #8
     SUBI    CX, #1
     JNZ     .idt32_fill
@@ -328,8 +330,8 @@ tetra_init:
     ; 10. Probe capability bits: can we go to 64-bit?
     ; -----------------------------------------------------------------------
     LD      AX, [0x0490]            ; retrieve stashed caps
-    TST     AX, #CAP_DRAGONET
-    JZ      skip_dragonet           ; no 64-bit support — stay in Tetra
+    TSTI    AX, #CAP_DRAGONET
+    JZ      skip_dragonet_tetra     ; no 64-bit support — stay in Tetra
 
     ; -----------------------------------------------------------------------
     ; 11. Enable PAE (required for long mode / Dragonet)
@@ -383,14 +385,19 @@ tetra_init:
 
     ; -----------------------------------------------------------------------
     ; 13. Activate Dragonet (64-bit long) mode
-    ;     On SeaBird this is done by writing the mode selector to CR0 extended
-    ;     bits and performing a far jump with a 64-bit code selector.
+    ;     Runtime mode transition is platform-specific; use control-register
+    ;     path then transfer control with a standard branch.
     ; -----------------------------------------------------------------------
     RDCR    AX, CR0
     OR      AX, #CR0_PE
     WRCR    CR0, AX
 
-    JMP     SEL_CODE64 : dragonet_init  ; far jump flushes pipeline, sets CS
+    JMP     dragonet_init
+
+skip_dragonet_tetra:
+    ; We stayed in 32-bit Tetra mode.  Enable interrupts and hand off.
+    STI
+    JMP     boot_handoff_tetra
 
 
 ; =============================================================================
@@ -426,15 +433,18 @@ dragonet_init:
     ;   [95:64]  offset[63:32]
     ;   [127:96] reserved (zero)
     STW     [AX+0],  BX             ; offset[15:0]
-    STW     [AX+2],  #SEL_CODE64
-    STW     [AX+4],  #0x8E00
+    MOVI    DX, #SEL_CODE64
+    STW     [AX+2],  DX
+    MOVI    DX, #0x8E00
+    STW     [AX+4],  DX
     SHR     DX, BX, #16
     STW     [AX+6],  DX             ; offset[31:16]
     SHR     DX, BX, #32
     STW     [AX+8],  DX             ; offset[63:32] (zero for low-mem stubs)
-    STW     [AX+10], #0
-    STW     [AX+12], #0
-    STW     [AX+14], #0
+    MOVI    DX, #0
+    STW     [AX+10], DX
+    STW     [AX+12], DX
+    STW     [AX+14], DX
     ADDI    AX, #16
     SUBI    CX, #1
     JNZ     .idt64_fill
@@ -448,16 +458,18 @@ dragonet_init:
     LD      AX, [0x0490]
 
     ; FPU / x87 ?
-    TST     AX, #CAP_FPU
+    TSTI    AX, #CAP_FPU
     JZ      .no_fpu
     RDCR    BX, CR0
-    AND     BX, #~0x04              ; clear CR0.EM (no FPU emulation)
+    MOVI    DX, #0x04
+    NOT     DX
+    AND     BX, DX                   ; clear CR0.EM (no FPU emulation)
     OR      BX, #0x02               ; set CR0.MP (monitor coprocessor)
     WRCR    CR0, BX
 .no_fpu:
 
     ; SIMD / Vector unit ?
-    TST     AX, #CAP_VECTOR
+    TSTI    AX, #CAP_VECTOR
     JZ      .no_vec
     RDCR    BX, CR4
     OR      BX, #0x0600             ; hypothetical OSFXSR | OSXMMEXCPT bits
@@ -478,17 +490,9 @@ dragonet_init:
 
 
 ; =============================================================================
-;  SECTION: boot_handoff — reached regardless of highest mode achieved
+;  SECTION: boot_handoff (Dragonet path)
 ; =============================================================================
-.mode   DRAGONET                    ; assemble as 64-bit (harmless if 32-bit
-                                    ; path branches to skip_dragonet variant)
-
-skip_dragonet:
-    ; We stayed in 32-bit Tetra mode.  Enable interrupts and hand off.
-    STI
-    ; Fall through to a 32-bit handoff (adjust .mode as appropriate in your
-    ; real toolchain — this label is intentionally in 64-bit section for
-    ; single-file simplicity; wrap in .ifdef TETRA_ONLY if needed.)
+.mode   DRAGONET
 
 boot_handoff:
     ; At this point:
@@ -506,7 +510,20 @@ boot_handoff:
     ; Convention: pass capability flags in R0, current mode in R1.
     LD      R0, [0x0490]            ; R0 = capability flags
     RDTS    R1                      ; R1 = timestamp (uniquely identifies boot)
-    JMP     [kernel_entry_point]    ; → OS / second-stage loader
+    LD      R2, [kernel_entry_point]
+    BRR     R2                      ; → OS / second-stage loader
+
+
+; =============================================================================
+;  SECTION: boot_handoff (Tetra path)
+; =============================================================================
+.mode   TETRA
+
+boot_handoff_tetra:
+    LD      R0, [0x0490]            ; R0 = capability flags
+    RDTS    R1                      ; R1 = timestamp
+    LD      R2, [kernel_entry_point]
+    BRR     R2
 
 
 ; =============================================================================
@@ -543,7 +560,7 @@ uart_putchar_16:
     PUSH    BX
 .uart16_wait:
     LD      BX, [UART_BASE + 5]     ; read Line Status Register
-    TST     BX, #0x20               ; bit 5 = Transmitter Holding Register Empty
+    TSTI    BX, #0x20               ; bit 5 = Transmitter Holding Register Empty
     JZ      .uart16_wait
     ST      [UART_BASE], AX         ; write character
     POP     BX
@@ -556,7 +573,7 @@ uart_putchar_32:
     PUSH    BX
 .uart32_wait:
     LD      BX, [UART_BASE + 5]
-    TST     BX, #0x20
+    TSTI    BX, #0x20
     JZ      .uart32_wait
     ST      [UART_BASE], AX
     POP     BX
@@ -569,7 +586,7 @@ uart_putchar_64:
     PUSH    BX
 .uart64_wait:
     LD      BX, [UART_BASE + 5]
-    TST     BX, #0x20
+    TSTI    BX, #0x20
     JZ      .uart64_wait
     ST      [UART_BASE], AX
     POP     BX

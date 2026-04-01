@@ -53,7 +53,8 @@ module reorder_buffer
   assign rob_used_count = count;
 
   // Sufficient free space check: need DECODE_WIDTH free entries
-  assign alloc_ready = (count + DECODE_WIDTH <= ROB_DEPTH);
+  assign alloc_ready = (count + (ROB_PTR_WIDTH+1)'(DECODE_WIDTH)
+                        <= (ROB_PTR_WIDTH+1)'(ROB_DEPTH));
 
   // --------------------------------------------------------------------------
   // Allocation: write new ROB entries at tail
@@ -83,11 +84,11 @@ module reorder_buffer
             rob[next_tail].is_branch           <= alloc_uop[i].is_branch;
             rob[next_tail].branch_mispredict   <= 1'b0;
             rob[next_tail].iclass             <= alloc_uop[i].iclass;
-            next_tail++;  // wraps naturally with ROB_PTR_WIDTH bits
+            next_tail = next_tail + ROB_PTR_WIDTH'(1);  // wraps naturally
           end
         end
         tail  <= next_tail;
-        count <= count + DECODE_WIDTH;  // simplified; real: count valid allocs
+        count <= count + (ROB_PTR_WIDTH+1)'(DECODE_WIDTH);  // simplified
       end
 
       // ----- CDB Writeback: mark entries complete -----

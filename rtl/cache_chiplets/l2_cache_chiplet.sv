@@ -136,9 +136,13 @@ module l2_cache_chiplet
           mesi_array[w][s]  = MESI_I;
         end
       for (int m = 0; m < MSHR_DEPTH; m++) mshr[m] <= '0;
+      tx_to_l1 <= '0;
+      tx_to_l3 <= '0;
       tx_to_l1_valid <= 1'b0;
       tx_to_l3_valid <= 1'b0;
     end else begin
+      tx_to_l1 <= '0;
+      tx_to_l3 <= '0;
       tx_to_l1_valid <= 1'b0;
       tx_to_l3_valid <= 1'b0;
       rx_from_l1_ready <= 1'b1;
@@ -239,7 +243,7 @@ module l2_cache_chiplet
         valid_array[victim][fill_set] <= 1'b1;
         dirty_array[victim][fill_set] <= 1'b0;
         mesi_array[victim][fill_set]  <= MESI_E;
-        plru[fill_set] <= 15'(~victim[3:0]);
+        plru[fill_set] <= {11'b0, ~victim};
 
         // Satisfy MSHR — forward to original requester
         for (int m = 0; m < MSHR_DEPTH; m++) begin

@@ -117,7 +117,7 @@ module noc_router
       for (int p = 0; p < NUM_PORTS; p++) begin
         if (in_valid[p]) begin
           automatic logic [2:0] vc = select_vc(in_pkt[p].pkt_type);
-          if (vc_count[p][vc] < VC_BUF_DEPTH) begin
+          if (vc_count[p][vc] < 4'(VC_BUF_DEPTH)) begin
             vc_buf[p][vc][vc_wrptr[p][vc]] <= in_pkt[p];
             vc_wrptr[p][vc] <= vc_wrptr[p][vc] + 3'd1;
             vc_count[p][vc] <= vc_count[p][vc] + 4'd1;

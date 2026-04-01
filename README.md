@@ -50,6 +50,11 @@ Clione prioritizes **instruction throughput over raw clock frequency**. The arch
 
 Custom 64-bit ISA (`clione64`) based on RISC-V encoding:
 
+- SeaBird compatibility layer is carried via encapsulated opcodes in the decode path.
+- Register windowing policy is **invisible/microarchitectural**: software-visible
+	architectural mapping stays flat (`r0..r31`) and does not use SPARC-style
+	window-control ISA semantics.
+
 | Opcode Class | Encoding | Notes |
 |---|---|---|
 | OP_INT (R-type) | 7'b0110011 | Full RV64I integer |
@@ -177,6 +182,9 @@ sudo apt install iverilog
 
 ./scripts/sim.sh alu verilator
 ./scripts/sim.sh all verilator
+
+# One-command baseline confidence gate (ALU + Core + Full)
+./scripts/verify_baseline.sh
 ```
 
 ### OpenLane VLSI Flow
@@ -207,10 +215,11 @@ sudo apt install iverilog
 | `ROB_DEPTH` | 256 | Reorder buffer entries |
 | `PHYS_INT_REGS` | 320 | Physical integer registers |
 | `PHYS_FP_REGS` | 320 | Physical FP registers |
-| `ARCH_INT_REGS` | 32 | Architectural integer registers |
+| `ARCH_INT_REGS` | 64 | Architectural integer registers in RTL package |
+| `LOGICAL_INT_REGS` | 32 | Compiler/ISA-visible logical integer registers |
 | `CACHE_LINE_BYTES` | 64 | Cache line size |
 | `NOC_DATA_WIDTH` | 512 | NoC packet payload width |
-| `NOC_NODE_WIDTH` | 5 | Node ID bits (up to 32 nodes) |
+| `NOC_NODE_BITS` | 5 | Node ID bits (up to 32 nodes) |
 
 ---
 

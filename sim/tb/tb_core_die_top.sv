@@ -17,6 +17,7 @@ module tb_core_die_top;
   // --------------------------------------------------------------------------
   logic                       clk;
   logic                       rst_n;
+  logic                       run_en;
   logic [SMT_WAYS-1:0]        thread_active;
   logic                       ext_interrupt;
   logic [63:0]                int_vector;
@@ -186,6 +187,7 @@ module tb_core_die_top;
     ext_interrupt = 1'b0;
     int_vector    = 64'h0;
     int_tid       = '0;
+    run_en        = 1'b0;
     rst_n = 0;
     repeat(10) @(posedge clk);
     rst_n = 1;
@@ -195,6 +197,7 @@ module tb_core_die_top;
     preload_core_program();
   `endif
     thread_active = '1;
+    run_en = 1'b1;
 
     // Run for 2000 cycles
     repeat(2000) @(posedge clk);
@@ -218,13 +221,13 @@ module tb_core_die_top;
   // Monitors
   // --------------------------------------------------------------------------
   always @(posedge clk) begin
-    if (rst_n && u_dut.retire_valid[0])
+    if (run_en && u_dut.retire_valid[0])
       $display("[%0t] RETIRE: rob_idx=%0d tid=%0d pc=%h",
         $time, u_dut.retire_entry[0].rob_idx, u_dut.retire_tid[0], u_dut.retire_entry[0].pc);
   end
 
   always @(posedge clk) begin
-    if (rst_n && noc_tx_valid[0])
+    if (run_en && noc_tx_valid[0])
       $display("[%0t] DISPATCH: rob_idx=%0d -> node %h",
         $time, noc_tx_pkt[0].rob_idx, noc_tx_pkt[0].dst_node);
   end

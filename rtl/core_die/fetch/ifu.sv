@@ -75,7 +75,7 @@ module ifu
       tid_rr <= '0;
     end else if (!tlb_inflight && !icache_req_valid) begin
       // Advance to next active thread
-      tid_rr <= (tid_rr == SMT_WAYS-1) ? '0 : tid_rr + 1'b1;
+      tid_rr <= (tid_rr == TID_WIDTH'(SMT_WAYS-1)) ? '0 : tid_rr + 1'b1;
     end
   end
 
@@ -83,8 +83,12 @@ module ifu
   always_comb begin
     active_tid = tid_rr;
     for (int i = 0; i < SMT_WAYS; i++) begin
-      if (thread_active[(tid_rr + i) % SMT_WAYS])
-        active_tid = (tid_rr + i[TID_WIDTH-1:0]) % SMT_WAYS;
+      automatic int unsigned cand_tid;
+      cand_tid = (int'(tid_rr) + i) % SMT_WAYS;
+      if (thread_active[TID_WIDTH'(cand_tid)]) begin
+        active_tid = TID_WIDTH'(cand_tid);
+        break;
+      end
     end
   end
 
@@ -154,7 +158,8 @@ module ifu
   always_comb begin
     fetch_valid_mask = '0;
     for (int i = 0; i < FETCH_WIDTH; i++) begin
-      int byte_idx = {line_offset[5:2], 2'b00} + (i * 4); //$unsigned()
+      int unsigned byte_idx;
+      byte_idx = int'({line_offset[5:2], 2'b00}) + (i * 4);
       if (byte_idx + 3 < CACHE_LINE_BYTES) begin
         fetch_raw[i]         = icache_line[byte_idx*8 +: 32];
         fetch_valid_mask[i]  = icache_resp_valid && !icache_resp_error;

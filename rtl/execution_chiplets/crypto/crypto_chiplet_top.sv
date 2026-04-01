@@ -165,7 +165,11 @@ module crypto_chiplet_top
       p1 <= '0; p2 <= '0;
       dq_head <= '0; dq_tail <= '0;
       tx_valid <= 1'b0; bypass_valid <= 1'b0;
+      tx_pkt <= '0;
+      bypass_result <= '0;
     end else begin
+      tx_pkt <= '0;
+      bypass_result <= '0;
       // Enqueue
       if (rx_valid && rx_ready && rx_pkt.pkt_type == NOC_DISPATCH) begin
         disp_q[dq_tail].instr   <= rx_pkt.data[31:0];
@@ -225,6 +229,8 @@ module crypto_chiplet_top
         bypass_result.result  <= p2.result[63:0];
         bypass_result.rob_idx <= p2.rob_idx;
         bypass_result.tid     <= p2.tid;
+        bypass_result.exception <= 1'b0;
+        bypass_result.exc_code  <= 6'b0;
         bypass_result.valid   <= 1'b1;
       end
     end

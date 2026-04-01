@@ -108,7 +108,7 @@ module fpu_pipe
       s2_b         <= s1_b;
       s2_c         <= s1_c;
       // Multiply exponents: exp(a) + exp(b) - BIAS
-      s2_exp_sum  <= 13'(s1_a.exp) + 13'(s1_b.exp) - BIAS;
+      s2_exp_sum  <= 13'(s1_a.exp) + 13'(s1_b.exp) - 13'(BIAS);
       // Mantissa with implicit leading 1
       s2_mant_prod <= {1'b1, s1_a.mant} * {1'b1, s1_b.mant};
       s2_sign_prod <= s1_a.sign ^ s1_b.sign;
@@ -145,21 +145,21 @@ module fpu_pipe
       if (s2_instr[6:0] == OP_FMADD || s2_instr[6:0] == OP_FMSUB) begin
         // FMA: product in s2_mant_prod, add c
         s3_addend_a <= {s2_mant_prod, 22'b0}; // Product, unnormalized
-        s3_addend_b <= {1'b1, s2_c.mant, 74'b0}; // c mantissa shifted
+        s3_addend_b <= {1'b1, s2_c.mant, 75'b0}; // c mantissa shifted
         s3_exp      <= s2_exp_sum;
         s3_sign_a   <= s2_sign_prod;
         s3_sign_b   <= s2_c.sign;
       end else begin
         // FADD/FSUB: align smaller to larger exponent
         if (s3_exp_diff >= 0) begin
-          s3_addend_a <= {1'b1, s2_a.mant, 74'b0};
-          s3_addend_b <= {1'b1, s2_b.mant, 74'b0} >> s3_exp_diff;
+          s3_addend_a <= {1'b1, s2_a.mant, 75'b0};
+          s3_addend_b <= {1'b1, s2_b.mant, 75'b0} >> s3_exp_diff;
           s3_exp      <= 13'(s2_a.exp);
           s3_sign_a   <= s2_a.sign;
           s3_sign_b   <= s2_b.sign;
         end else begin
-          s3_addend_a <= {1'b1, s2_b.mant, 74'b0};
-          s3_addend_b <= {1'b1, s2_a.mant, 74'b0} >> (-s3_exp_diff);
+          s3_addend_a <= {1'b1, s2_b.mant, 75'b0};
+          s3_addend_b <= {1'b1, s2_a.mant, 75'b0} >> (-s3_exp_diff);
           s3_exp      <= 13'(s2_b.exp);
           s3_sign_a   <= s2_b.sign;
           s3_sign_b   <= s2_a.sign;

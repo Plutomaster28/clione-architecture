@@ -7,7 +7,7 @@
 module decode_unit
   import clione_pkg::*;
  #(
-  parameter bit ENABLE_ROTATING_REGS = 1'b1,
+  parameter bit ENABLE_ROTATING_REGS = 1'b0,
   parameter bit AUTO_ROTATE_BUNDLES  = 1'b0
  )
 (
@@ -333,7 +333,8 @@ module decode_unit
         dec_buf[i] <= dec_out[i];
 
       if (ENABLE_ROTATING_REGS && AUTO_ROTATE_BUNDLES && fetch_valid)
-        rot_base[fetch_tid] <= (rot_base[fetch_tid] + 5'd1) % ROTATING_LOGICAL_REGS;
+        rot_base[fetch_tid] <= 5'((int'(rot_base[fetch_tid]) + 1)
+                                  % ROTATING_LOGICAL_REGS);
     end
   end
 

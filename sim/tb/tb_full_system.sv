@@ -17,6 +17,7 @@ module tb_full_system;
   logic                ext_interrupt;
   logic [63:0]         int_vector;
   logic [TID_WIDTH-1:0] int_tid;
+  logic                run_en;
 
   // --------------------------------------------------------------------------
   // NoC fabric wires — 16 nodes × 5 ports
@@ -83,6 +84,14 @@ module tb_full_system;
   logic     core_noc_rx_valid [ISSUE_WIDTH-1:0];
   logic     core_noc_rx_ready [ISSUE_WIDTH-1:0];
 
+  // Dedicated cache-link between core die and local L2 model.
+  noc_pkt_t core_cache_tx_pkt;
+  logic     core_cache_tx_valid;
+  logic     core_cache_tx_ready;
+  noc_pkt_t core_cache_rx_pkt;
+  logic     core_cache_rx_valid;
+  logic     core_cache_rx_ready;
+
   // --------------------------------------------------------------------------
   // NoC Fabric
   // --------------------------------------------------------------------------
@@ -125,12 +134,12 @@ module tb_full_system;
     .noc_rx_pkt     ( core_noc_rx_pkt         ),
     .noc_rx_valid   ( core_noc_rx_valid       ),
     .noc_rx_ready   ( core_noc_rx_ready       ),
-    .cache_tx_pkt   ( node_tx_pkt  [9]        ), // L2 node 9 = (1,2)
-    .cache_tx_valid ( node_tx_valid[9]        ),
-    .cache_tx_ready ( node_tx_credit[9]       ),
-    .cache_rx_pkt   ( node_rx_pkt  [9]        ),
-    .cache_rx_valid ( node_rx_valid[9]        ),
-    .cache_rx_ready ( node_rx_credit[9]       ),
+    .cache_tx_pkt   ( core_cache_tx_pkt       ),
+    .cache_tx_valid ( core_cache_tx_valid     ),
+    .cache_tx_ready ( core_cache_tx_ready     ),
+    .cache_rx_pkt   ( core_cache_rx_pkt       ),
+    .cache_rx_valid ( core_cache_rx_valid     ),
+    .cache_rx_ready ( core_cache_rx_ready     ),
     .ext_interrupt  ( ext_interrupt           ),
     .int_vector     ( int_vector              ),
     .int_tid        ( int_tid                 )
@@ -236,12 +245,12 @@ module tb_full_system;
   l2_cache_chiplet #(.CHIPLET_NODE_ID(5'h09)) u_l2 (
     .clk            ( clk                     ),
     .rst_n          ( rst_n                   ),
-    .rx_from_l1     ( node_rx_pkt  [9]        ),
-    .rx_from_l1_valid( node_rx_valid[9]       ),
-    .rx_from_l1_ready( node_rx_credit[9]      ),
-    .tx_to_l1       ( node_tx_pkt  [9]        ),
-    .tx_to_l1_valid ( node_tx_valid[9]        ),
-    .tx_to_l1_ready ( node_tx_credit[9]       ),
+    .rx_from_l1     ( core_cache_tx_pkt       ),
+    .rx_from_l1_valid( core_cache_tx_valid    ),
+    .rx_from_l1_ready( core_cache_tx_ready    ),
+    .tx_to_l1       ( core_cache_rx_pkt       ),
+    .tx_to_l1_valid ( core_cache_rx_valid     ),
+    .tx_to_l1_ready ( core_cache_rx_ready     ),
     .tx_to_l3       ( node_tx_pkt  [12]       ), // L3 = node 12 = (0,3)
     .tx_to_l3_valid ( node_tx_valid[12]       ),
     .tx_to_l3_ready ( node_tx_credit[12]      ),
@@ -255,7 +264,7 @@ module tb_full_system;
   // --------------------------------------------------------------------------
   generate
     for (genvar n = 0; n < NUM_NODES; n++) begin : g_tieoff
-      if (n != 0 && n != 1 && n != 4 && n != 6 && n != 8 && n != 9 && n != 12) begin
+      if (n != 0 && n != 1 && n != 4 && n != 6 && n != 8 && n != 12) begin
         assign node_tx_pkt  [n] = '0;
         assign node_tx_valid[n] = 1'b0;
         assign node_rx_credit[n]= 1'b1;
@@ -277,6 +286,7 @@ module tb_full_system;
     $dumpvars(1, tb_full_system);
 
     rst_n = 0;
+    run_en = 1'b0;
     thread_active = '0;
     ext_interrupt = 1'b0;
     int_vector    = '0;
@@ -289,6 +299,7 @@ module tb_full_system;
     preload_full_program();
   `endif
     thread_active = '1;
+    run_en = 1'b1;
 
     $display("[%0t] System reset complete — running...", $time);
     repeat(5000) @(posedge clk);
@@ -306,14 +317,14 @@ module tb_full_system;
 
   // Monitor retirements
   always @(posedge clk) begin
-    if (rst_n && u_core.retire_valid[0])
+    if (run_en && u_core.retire_valid[0])
       $display("[%0t] RETIRE pc=%h rob=%0d",
         $time, u_core.retire_entry[0].pc, u_core.retire_entry[0].rob_idx);
   end
 
   // Monitor NoC traffic
   always @(posedge clk) begin
-    if (rst_n && node_tx_valid[0])
+    if (run_en && node_tx_valid[0])
       $display("[%0t] CORE→NOC: type=%s dst=%h rob=%0d",
         $time, node_tx_pkt[0].pkt_type.name(), node_tx_pkt[0].dst_node,
         node_tx_pkt[0].rob_idx);

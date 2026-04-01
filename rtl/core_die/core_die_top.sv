@@ -380,7 +380,10 @@ module core_die_top
   );
 
   // --- Decode Unit ---
-  decode_unit u_decode (
+  decode_unit #(
+    .ENABLE_ROTATING_REGS (1'b0),
+    .AUTO_ROTATE_BUNDLES  (1'b0)
+  ) u_decode (
     .clk            (clk),
     .rst_n          (rst_n),
     .fetch_bundle   (fetch_bundle),

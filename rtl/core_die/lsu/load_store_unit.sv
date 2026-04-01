@@ -211,7 +211,7 @@ module load_store_unit
 
     for (int i = 0; i < LQ_DEPTH; i++) begin
       if (lq[i].valid && !lq[i].addr_computed) begin
-        dtlb_vaddr     = lq[i].uop.imm + 64'(lq[i].uop.phys_rs1); // simplified
+        dtlb_vaddr     = VADDR_WIDTH'(lq[i].uop.imm + 64'(lq[i].uop.phys_rs1)); // simplified
         dtlb_tid       = lq[i].uop.tid;
         dtlb_req_valid = 1'b1;
         dtlb_is_store  = 1'b0;
@@ -222,7 +222,7 @@ module load_store_unit
     if (!dtlb_req_valid) begin
       for (int i = 0; i < SQ_DEPTH; i++) begin
         if (sq[i].valid && !sq[i].addr_computed) begin
-          dtlb_vaddr     = sq[i].uop.imm + 64'(sq[i].uop.phys_rs1); // simplified
+          dtlb_vaddr     = VADDR_WIDTH'(sq[i].uop.imm + 64'(sq[i].uop.phys_rs1)); // simplified
           dtlb_tid       = sq[i].uop.tid;
           dtlb_req_valid = 1'b1;
           dtlb_is_store  = 1'b1;

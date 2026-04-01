@@ -453,12 +453,13 @@ package clione_pkg;
     input logic [4:0] rot_base
   );
     automatic logic [AREG_WIDTH-1:0] out_reg;
+    automatic int unsigned rot_idx;
     if (logical_reg < FIXED_LOGICAL_REGS[4:0]) begin
       out_reg = AREG_WIDTH'(logical_reg);
     end else begin
-      out_reg = AREG_WIDTH'(FIXED_LOGICAL_REGS +
-                            ((logical_reg - FIXED_LOGICAL_REGS[4:0] +
-                              rot_base) % ROTATING_LOGICAL_REGS));
+      rot_idx = (int'(logical_reg) - FIXED_LOGICAL_REGS + int'(rot_base))
+                % ROTATING_LOGICAL_REGS;
+      out_reg = AREG_WIDTH'(FIXED_LOGICAL_REGS + rot_idx);
     end
     return out_reg;
   endfunction

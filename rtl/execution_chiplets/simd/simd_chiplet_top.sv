@@ -213,9 +213,13 @@ module simd_chiplet_top
     if (!rst_n) begin
       tx_valid     <= 1'b0;
       bypass_valid <= 1'b0;
+      tx_pkt       <= '0;
+      bypass_result<= '0;
     end else begin
-      tx_valid     <= pvec[4].valid;
-      bypass_valid <= pvec[4].valid;
+      tx_valid      <= 1'b0;
+      bypass_valid  <= 1'b0;
+      tx_pkt        <= '0;
+      bypass_result <= '0;
 
       if (pvec[4].valid) begin
         tx_pkt.pkt_type      <= NOC_RESULT;
@@ -223,15 +227,18 @@ module simd_chiplet_top
         tx_pkt.dst_node      <= 5'h00;
         tx_pkt.rob_idx       <= pvec[4].rob_idx;
         tx_pkt.tid           <= pvec[4].tid;
-        tx_pkt.data[VREG_WIDTH-1:0] <= pvec[4].vs1; // Vector result to memory
-        tx_pkt.data[PREG_WIDTH-1+VREG_WIDTH:VREG_WIDTH] <= pvec[4].phys_rd;
+        // Result packet layout follows core scalar result contract.
+        tx_pkt.data[PREG_WIDTH-1:0] <= pvec[4].phys_rd;
+        tx_pkt.data[127:64]         <= pvec[4].vs1[63:0];
         tx_pkt.valid         <= 1'b1;
+        tx_valid             <= 1'b1;
 
         bypass_result.phys_rd <= pvec[4].phys_rd;
         bypass_result.result  <= pvec[4].vs1[63:0]; // Scalar extract
         bypass_result.rob_idx <= pvec[4].rob_idx;
         bypass_result.tid     <= pvec[4].tid;
         bypass_result.valid   <= 1'b1;
+        bypass_valid          <= 1'b1;
       end
     end
   end

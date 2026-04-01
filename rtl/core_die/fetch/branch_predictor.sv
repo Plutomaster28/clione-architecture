@@ -94,25 +94,28 @@ module branch_predictor
   // --------------------------------------------------------------------------
   always_comb begin
     for (int t = 0; t < SMT_WAYS; t++) begin
+      automatic logic [11:0] bimodal_idx;
+      automatic logic        bimodal_pred;
+      automatic logic        btb_hit;
+      automatic logic [63:0] btb_target;
+      automatic logic [$clog2(BTB_ENTRIES_PER_WAY)-1:0] btb_idx;
+
       pred_taken[t]  = 1'b0;
       pred_target[t] = '0;
       pred_valid[t]  = 1'b0;
       pred_tag[t]    = 3'd0;
+      bimodal_idx    = '0;
+      bimodal_pred   = 1'b0;
+      btb_hit        = 1'b0;
+      btb_target     = '0;
+      btb_idx        = '0;
 
       if (req_valid[t]) begin
-        automatic logic [11:0] bimodal_idx;
-        automatic logic        bimodal_pred;
-        automatic logic        btb_hit;
-        automatic logic [63:0] btb_target;
-
         bimodal_idx  = req_pc[t][13:2];
         bimodal_pred = bimodal[bimodal_idx][1]; // Strong bit
 
         // BTB lookup
-        btb_hit    = 1'b0;
-        btb_target = '0;
         for (int w = 0; w < BTB_WAYS; w++) begin
-          automatic logic [$clog2(BTB_ENTRIES_PER_WAY)-1:0] btb_idx;
           btb_idx = req_pc[t][$clog2(BTB_ENTRIES_PER_WAY)+1:2];
           if (btb[w][btb_idx].valid &&
               btb[w][btb_idx].tag == req_pc[t][63:12]) begin

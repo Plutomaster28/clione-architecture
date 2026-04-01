@@ -1,10 +1,17 @@
 {
   "profile": "clione64_rtl_bringup",
-  "version": "0.1",
+  "version": "0.2",
+  "status": "baseline_frozen_2026_03_31",
   "description": "Machine-readable encoding table for simulation bring-up. This matches current RTL opcode decoding, not the full SeaBird doc surface.",
   "xlen": 64,
   "instruction_width": 32,
   "registers": 32,
+  "register_windowing": {
+    "model": "invisible_microarchitectural",
+    "isa_visible": false,
+    "architectural_register_mapping": "flat_r0_to_r31",
+    "notes": "Any rotating/register-window behavior is an internal implementation detail and must not change programmer-visible register numbering or require dedicated window-control ISA ops."
+  },
   "formats": {
     "R": {"fields": ["funct7", "rs2", "rs1", "funct3", "rd", "opcode"]},
     "I": {"fields": ["imm12", "rs1", "funct3", "rd", "opcode"]},

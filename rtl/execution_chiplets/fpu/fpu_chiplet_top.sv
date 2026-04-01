@@ -47,7 +47,7 @@ module fpu_chiplet_top
   logic [5:0]               fpu_exc_code[NUM_FPUS-1:0];
   logic                     fpu_valid   [NUM_FPUS-1:0];
   logic                     fpu_ready   [NUM_FPUS-1:0];
-  logic [1:0]  rr_fpu;
+  logic [$clog2(NUM_FPUS)-1:0] rr_fpu;
 
   generate
     genvar gf;
@@ -82,7 +82,11 @@ module fpu_chiplet_top
       rr_fpu  <= '0;
       tx_valid <= 1'b0;
       bypass_valid <= 1'b0;
+      tx_pkt <= '0;
+      bypass_result <= '0;
     end else begin
+      tx_pkt <= '0;
+      bypass_result <= '0;
       // Enqueue
       if (rx_valid && rx_ready && rx_pkt.pkt_type == NOC_DISPATCH) begin
         disp_q[dq_tail].instr   <= rx_pkt.data[31:0];
@@ -119,6 +123,8 @@ module fpu_chiplet_top
           bypass_result.result  <= fpu_result[i];
           bypass_result.rob_idx <= fpu_rob_idx[i];
           bypass_result.tid     <= fpu_tid[i];
+          bypass_result.exception<= fpu_exc[i];
+          bypass_result.exc_code <= fpu_exc_code[i];
           bypass_result.valid   <= 1'b1;
           bypass_valid <= 1'b1;
         end

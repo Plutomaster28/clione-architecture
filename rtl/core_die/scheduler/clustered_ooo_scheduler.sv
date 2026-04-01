@@ -117,11 +117,19 @@ module clustered_ooo_scheduler
       dispatch_valid[i] = 1'b0;
       disp_ent[i]       = '0;
     end
+    for (int i = 0; i < 4; i++) begin
+      iq_rdy_int[i] = 1'b0;
+      iq_rdy_fp[i]  = 1'b0;
+      iq_rdy_vec[i] = 1'b0;
+      iq_rdy_mem[i] = 1'b0;
+    end
 
     // Slots 0-3: INT cluster
     for (int i = 0; i < 4; i++) begin
+      logic [3:0] cid;
+      cid = 4'(CLUSTER_ALU0);
       if (iq_vld_int[i] && dispatch_ready[i] && !flush_valid) begin
-        automatic logic [3:0] cid = pick_cluster(iq_uop_int[i].iclass, cluster_inflight);
+        cid = pick_cluster(iq_uop_int[i].iclass, cluster_inflight);
         disp_ent[i].uop       = iq_uop_int[i];
         disp_ent[i].src1_data = rf_rd_data[i*3+0];
         disp_ent[i].src2_data = rf_rd_data[i*3+1];
@@ -165,8 +173,10 @@ module clustered_ooo_scheduler
 
     // Slots 4-5: FP cluster
     for (int i = 0; i < 2; i++) begin
+      logic [3:0] cid;
+      cid = 4'(CLUSTER_FPU0);
       if (iq_vld_fp[i] && dispatch_ready[4+i] && !flush_valid) begin
-        automatic logic [3:0] cid = pick_cluster(ICLASS_FP, cluster_inflight);
+        cid = pick_cluster(ICLASS_FP, cluster_inflight);
         dispatch_pkt[4+i].pkt_type = NOC_DISPATCH;
         dispatch_pkt[4+i].src_node = 5'h00;
         dispatch_pkt[4+i].dst_node = 5'(cid);

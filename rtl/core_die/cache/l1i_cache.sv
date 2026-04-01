@@ -142,7 +142,7 @@ module l1i_cache
         tag_array[victim][fill_set]   <= fill_tag;
         valid_array[victim][fill_set] <= 1'b1;
         // Update PLRU
-        plru[fill_set] <= 3'(~victim);
+        plru[fill_set] <= 3'({1'b0, ~victim});
 
         // Free MSHR entry
         for (int m = 0; m < MSHR_DEPTH; m++) begin

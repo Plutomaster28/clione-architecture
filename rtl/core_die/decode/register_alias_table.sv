@@ -131,14 +131,18 @@ module register_alias_table
 
   always_comb begin
     for (int i = 0; i < DECODE_WIDTH; i++) begin
+      automatic logic [TID_WIDTH-1:0] t;
+      automatic logic is_fp;
       ren_out[i] = dec_bundle[i];
+      t = '0;
+      is_fp = 1'b0;
 
       if (!dec_bundle[i].valid) begin
         ren_out[i] = '0;
       end else begin
-        automatic logic [TID_WIDTH-1:0] t = dec_bundle[i].tid;
-        automatic logic is_fp = is_fp_op(dec_bundle[i].opcode) ||
-                                is_vec_op(dec_bundle[i].opcode);
+        t = dec_bundle[i].tid;
+        is_fp = is_fp_op(dec_bundle[i].opcode) ||
+                is_vec_op(dec_bundle[i].opcode);
 
         // Physical source 1
         ren_out[i].phys_rs1 = is_fp ? rat_fp[t][dec_bundle[i].arch_rs1]

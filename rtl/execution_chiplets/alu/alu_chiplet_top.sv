@@ -175,7 +175,8 @@ module alu_chiplet_top
       bypass_valid  <= 1'b0;
 
       for (int i = 0; i < NUM_ALUS; i++) begin
-        automatic int ai = (res_rr + i) % NUM_ALUS;
+        automatic int ai;
+        ai = (int'(res_rr) + i) % NUM_ALUS;
         if (alu_res_valid[ai] && !tx_valid) begin
           // Pack result into NoC packet
           tx_pkt.pkt_type <= NOC_RESULT;

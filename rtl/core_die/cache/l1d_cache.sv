@@ -146,6 +146,8 @@ module l1d_cache
           dirty_array[w][s] = 1'b0;
           mesi_array[w][s]  = MESI_I;
         end
+      for (int s = 0; s < NUM_SETS; s++)
+        plru[s] = '0;
       wb_valid <= 1'b0;
     end else begin
       wb_valid <= 1'b0;
@@ -158,7 +160,7 @@ module l1d_cache
             st_off = st_paddr[LINE_OFF_BITS-1:0];
             for (int b = 0; b < 8; b++) begin
               if (st_be[b])
-                data_array[w][st_set][(st_off + b)*8 +: 8] <= st_data[b*8 +: 8];
+                data_array[w][st_set][(int'(st_off) + b)*8 +: 8] <= st_data[b*8 +: 8];
             end
             dirty_array[w][st_set] <= 1'b1;
             mesi_array[w][st_set]  <= MESI_M;
